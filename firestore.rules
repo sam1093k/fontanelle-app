@@ -1,0 +1,96 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Admin = flag isAdmin sul proprio documento utente.
+    // Il flag è modificabile SOLO da un altro admin (vedi rules di /users):
+    // mai impostabile alla creazione, mai auto-assegnabile.
+    function isAdmin() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function validStatus(s) {
+      return s in ['active', 'inactive', 'maintenance', 'unknown'];
+    }
+
+    function validPayload(p) {
+      return p.keys().hasAll(['name', 'category', 'status', 'description', 'lat', 'lng', 'photoFileIds'])
+        && p.keys().hasOnly(['name', 'category', 'status', 'description', 'lat', 'lng', 'photoFileIds'])
+        && p.name is string && p.name.size() >= 1 && p.name.size() <= 100
+        && p.category is string
+        && exists(/databases/$(database)/documents/categories/$(p.category))
+        && validStatus(p.status)
+        && p.description is string && p.description.size() <= 1000
+        && p.lat is number && p.lat >= -90 && p.lat <= 90
+        && p.lng is number && p.lng >= -180 && p.lng <= 180
+        && p.photoFileIds is list && p.photoFileIds.size() <= 5;
+    }
+
+    // I punti sono scrivibili solo dagli admin (l'approvazione di una
+    // proposta avviene lato client admin con una batch write).
+    match /points/{pointId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Gli utenti normali possono SOLO creare proposte (mai toccare points).
+    match /suggestions/{suggestionId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.authorUid == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasAll(['type', 'pointId', 'payload', 'note', 'authorUid', 'status', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['type', 'pointId', 'payload', 'note', 'authorUid', 'status', 'createdAt'])
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.type in ['add', 'edit']
+        && (request.resource.data.type == 'add'
+              ? request.resource.data.pointId == null
+              : (request.resource.data.pointId is string
+                 && exists(/databases/$(database)/documents/points/$(request.resource.data.pointId))))
+        && validPayload(request.resource.data.payload)
+        && request.resource.data.note is string && request.resource.data.note.size() <= 500
+        && request.resource.data.createdAt == request.time;
+      // Solo transizione pending -> approved/rejected, solo admin.
+      allow update: if isAdmin()
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['approved', 'rejected']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt']);
+      allow delete: if isAdmin()
+        || (signedIn() && resource.data.authorUid == request.auth.uid && resource.data.status == 'pending');
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      // Alla creazione isAdmin non può esistere.
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['displayName', 'createdAt'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 1
+        && request.resource.data.displayName.size() <= 50;
+      // Se stessi: solo displayName. Admin: solo il flag isAdmin altrui.
+      allow update: if (isSelf(uid)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+            && request.resource.data.displayName is string
+            && request.resource.data.displayName.size() >= 1
+            && request.resource.data.displayName.size() <= 50)
+        || (isAdmin()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isAdmin'])
+            && request.resource.data.isAdmin is bool);
+      allow delete: if false;
+    }
+  }
+}
