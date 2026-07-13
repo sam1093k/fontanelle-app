@@ -31,16 +31,27 @@ export default function MapView({
   useEffect(() => {
     const map = L.map(elRef.current, { zoomControl: false }).setView([42.5, 12.5], 6)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
+    // Tile Carto (gratuite, retina, con variante scura che segue il tema di sistema).
+    const darkQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const tileUrl = (dark) =>
+      dark
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+    const tiles = L.tileLayer(tileUrl(darkQuery.matches), {
+      attribution:
+        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 20,
     }).addTo(map)
+    const onSchemeChange = (e) => tiles.setUrl(tileUrl(e.matches))
+    darkQuery.addEventListener('change', onSchemeChange)
     map.on('click', (e) => {
       if (!pickingRef.current) return
       setPickPos({ lat: e.latlng.lat, lng: e.latlng.lng })
     })
     mapObj.current = map
     return () => {
+      darkQuery.removeEventListener('change', onSchemeChange)
       map.remove()
       mapObj.current = null
     }
@@ -88,12 +99,16 @@ export default function MapView({
     const map = mapObj.current
     if (!map || !location) return
     if (!meMarkerRef.current) {
-      meMarkerRef.current = L.circleMarker([location.lat, location.lng], {
-        radius: 8,
-        color: '#fff',
-        weight: 2,
-        fillColor: '#2563eb',
-        fillOpacity: 1,
+      const meIcon = L.divIcon({
+        className: 'me-marker',
+        html: '<div class="me-dot"></div>',
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      })
+      meMarkerRef.current = L.marker([location.lat, location.lng], {
+        icon: meIcon,
+        interactive: false,
+        zIndexOffset: 500,
       }).addTo(map)
     } else {
       meMarkerRef.current.setLatLng([location.lat, location.lng])

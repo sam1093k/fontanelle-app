@@ -22,7 +22,7 @@ function SuggestionCard({ s, categories, authorName, actions }) {
         <strong>
           {TYPE_LABELS[s.type] || s.type}: {s.payload.name}
         </strong>
-        <span className="status-chip" style={{ background: SUGGESTION_STATUS[s.status]?.color }}>
+        <span className="status-chip" style={{ '--c': SUGGESTION_STATUS[s.status]?.color }}>
           {SUGGESTION_STATUS[s.status]?.label}
         </span>
       </div>

@@ -71,7 +71,7 @@ export default function PointList({ points, categories, location, onSelect }) {
             </div>
             <span
               className="status-chip"
-              style={{ background: STATUSES[p.status]?.color || STATUSES.unknown.color }}
+              style={{ '--c': STATUSES[p.status]?.color || STATUSES.unknown.color }}
             >
               {STATUSES[p.status]?.label || '?'}
             </span>

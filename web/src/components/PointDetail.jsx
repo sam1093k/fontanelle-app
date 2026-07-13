@@ -80,7 +80,7 @@ export default function PointDetail({ point, categories, location, isAdmin, user
         <div className="chips">
           <span
             className="status-chip"
-            style={{ background: STATUSES[point.status]?.color || STATUSES.unknown.color }}
+            style={{ '--c': STATUSES[point.status]?.color || STATUSES.unknown.color }}
           >
             {STATUSES[point.status]?.label || point.status}
           </span>

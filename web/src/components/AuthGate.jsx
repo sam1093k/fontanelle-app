@@ -36,7 +36,8 @@ export default function AuthGate() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1>💧 Fontanelle</h1>
+        <div className="logo-drop">💧</div>
+        <h1>Fontanelle</h1>
         <p className="muted">Mappa privata dei punti di interesse</p>
         <form onSubmit={submit}>
           {mode === 'signup' && (
