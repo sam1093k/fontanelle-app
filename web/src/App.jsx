@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { useCategories, useGeolocation, usePoints } from './hooks/useData'
 import AuthGate from './components/AuthGate'
@@ -29,10 +29,9 @@ function Shell({ user, profile, isAdmin }) {
   const [tab, setTab] = useState('map')
   const points = usePoints()
   const categories = useCategories()
-  const location = useGeolocation()
+  const { location, status: geoStatus, request: requestLocation } = useGeolocation()
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState(null) // {type:'add', coords} | {type:'edit', point}
-  const mapRef = useRef(null)
 
   // Il punto selezionato va riletto dai dati live (potrebbe cambiare in realtime).
   const selectedLive = selected ? points.find((p) => p.id === selected.id) : null
@@ -47,9 +46,10 @@ function Shell({ user, profile, isAdmin }) {
             points={points}
             categories={categories}
             location={location}
+            geoStatus={geoStatus}
+            onRequestLocation={requestLocation}
             onSelect={setSelected}
-            onPropose={(coords) => setForm({ type: 'add', coords })}
-            mapRef={mapRef}
+            onPickConfirm={(coords) => setForm({ type: 'add', coords })}
           />
         )}
         {tab === 'list' && (
@@ -102,6 +102,8 @@ function Shell({ user, profile, isAdmin }) {
           categories={categories}
           user={user}
           location={location}
+          geoStatus={geoStatus}
+          onRequestLocation={requestLocation}
           onClose={() => setForm(null)}
         />
       )}

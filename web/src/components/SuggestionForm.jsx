@@ -5,8 +5,10 @@ import { MAX_PHOTOS, STATUSES } from '../constants'
 import { uploadPhoto } from '../lib/photos'
 import PhotoImg from './PhotoImg'
 
+import { GEO_DENIED_HELP } from '../hooks/useData'
+
 // mode: { type: 'add', coords: {lat,lng} } oppure { type: 'edit', point }
-export default function SuggestionForm({ mode, categories, user, location, onClose }) {
+export default function SuggestionForm({ mode, categories, user, location, geoStatus, onRequestLocation, onClose }) {
   const editing = mode.type === 'edit'
   const p = editing ? mode.point : null
 
@@ -145,18 +147,23 @@ export default function SuggestionForm({ mode, categories, user, location, onClo
               <input value={lng} onChange={(e) => setLng(e.target.value)} inputMode="decimal" required />
             </label>
           </div>
-          {location && (
-            <button
-              type="button"
-              className="button secondary small-btn"
-              onClick={() => {
+          <button
+            type="button"
+            className="button secondary small-btn"
+            onClick={() => {
+              if (location) {
                 setLat(location.lat)
                 setLng(location.lng)
-              }}
-            >
-              📍 Usa la mia posizione
-            </button>
-          )}
+              } else if (geoStatus === 'denied') {
+                alert(GEO_DENIED_HELP)
+              } else {
+                onRequestLocation()
+                setError('Attivazione posizione in corso: consenti l’accesso e ripremi il tasto.')
+              }
+            }}
+          >
+            📍 Usa la mia posizione
+          </button>
 
           <label>
             Foto ({photoFileIds.length}/{MAX_PHOTOS})

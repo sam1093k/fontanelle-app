@@ -32,7 +32,16 @@ export async function uploadPhoto(file) {
     headers: { ...(await authHeader()), 'Content-Type': 'image/jpeg' },
     body: blob,
   })
-  if (!res.ok) throw new Error('Upload foto fallito')
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const err = await res.json()
+      detail = err.detail || err.error || ''
+    } catch {
+      /* corpo non JSON */
+    }
+    throw new Error(`Upload foto fallito (HTTP ${res.status}${detail ? `: ${detail}` : ''})`)
+  }
   return (await res.json()).fileId
 }
 

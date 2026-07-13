@@ -1,14 +1,29 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { STATUSES } from '../constants'
+import { GEO_DENIED_HELP } from '../hooks/useData'
 
-export default function MapView({ points, categories, location, onSelect, onPropose, mapRef }) {
+export default function MapView({
+  points,
+  categories,
+  location,
+  geoStatus,
+  onRequestLocation,
+  onSelect,
+  onPickConfirm,
+}) {
   const elRef = useRef(null)
-  const leafletRef = useRef(null)
+  const mapObj = useRef(null)
   const markersRef = useRef(new Map())
   const meMarkerRef = useRef(null)
+  const pickMarkerRef = useRef(null)
   const centeredOnceRef = useRef(false)
+
+  const [picking, setPicking] = useState(false)
+  const [pickPos, setPickPos] = useState(null)
+  const pickingRef = useRef(false)
+  pickingRef.current = picking
 
   const catMap = Object.fromEntries(categories.map((c) => [c.id, c]))
 
@@ -19,17 +34,20 @@ export default function MapView({ points, categories, location, onSelect, onProp
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19,
     }).addTo(map)
-    leafletRef.current = map
-    if (mapRef) mapRef.current = map
+    map.on('click', (e) => {
+      if (!pickingRef.current) return
+      setPickPos({ lat: e.latlng.lat, lng: e.latlng.lng })
+    })
+    mapObj.current = map
     return () => {
       map.remove()
-      if (mapRef) mapRef.current = null
+      mapObj.current = null
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sincronizza i marker con i punti (realtime).
   useEffect(() => {
-    const map = leafletRef.current
+    const map = mapObj.current
     if (!map) return
     const seen = new Set()
     for (const p of points) {
@@ -45,10 +63,14 @@ export default function MapView({ points, categories, location, onSelect, onProp
       const existing = markersRef.current.get(p.id)
       if (existing) {
         existing.setLatLng([p.lat, p.lng]).setIcon(icon)
-        existing.off('click').on('click', () => onSelect(p))
+        existing.off('click').on('click', () => {
+          if (!pickingRef.current) onSelect(p)
+        })
       } else {
         const m = L.marker([p.lat, p.lng], { icon }).addTo(map)
-        m.on('click', () => onSelect(p))
+        m.on('click', () => {
+          if (!pickingRef.current) onSelect(p)
+        })
         markersRef.current.set(p.id, m)
       }
     }
@@ -62,7 +84,7 @@ export default function MapView({ points, categories, location, onSelect, onProp
 
   // Marker della posizione utente + centratura al primo fix.
   useEffect(() => {
-    const map = leafletRef.current
+    const map = mapObj.current
     if (!map || !location) return
     if (!meMarkerRef.current) {
       meMarkerRef.current = L.circleMarker([location.lat, location.lng], {
@@ -81,28 +103,99 @@ export default function MapView({ points, categories, location, onSelect, onProp
     }
   }, [location])
 
+  // Puntina della posizione scelta in modalità selezione.
+  useEffect(() => {
+    const map = mapObj.current
+    if (!map) return
+    if (picking && pickPos) {
+      const icon = L.divIcon({
+        className: 'poi-icon',
+        html: '<div class="pick-pin">📍</div>',
+        iconSize: [40, 40],
+        iconAnchor: [20, 36],
+      })
+      if (!pickMarkerRef.current) {
+        pickMarkerRef.current = L.marker([pickPos.lat, pickPos.lng], { icon, zIndexOffset: 1000 }).addTo(map)
+      } else {
+        pickMarkerRef.current.setLatLng([pickPos.lat, pickPos.lng])
+      }
+    } else if (pickMarkerRef.current) {
+      pickMarkerRef.current.remove()
+      pickMarkerRef.current = null
+    }
+  }, [picking, pickPos])
+
+  function confirmPick(coords) {
+    setPicking(false)
+    setPickPos(null)
+    onPickConfirm(coords)
+  }
+
+  function cancelPick() {
+    setPicking(false)
+    setPickPos(null)
+  }
+
+  function handleLocate() {
+    if (location) {
+      mapObj.current?.setView([location.lat, location.lng], 16)
+    } else if (geoStatus === 'denied') {
+      alert(GEO_DENIED_HELP)
+    } else {
+      onRequestLocation()
+    }
+  }
+
   return (
     <div className="map-wrap">
       <div ref={elRef} className="map" />
-      <button
-        className="fab"
-        title="Proponi un nuovo punto (al centro della mappa)"
-        onClick={() => {
-          const c = leafletRef.current?.getCenter()
-          if (c) onPropose({ lat: c.lat, lng: c.lng })
-        }}
-      >
-        ＋
-      </button>
-      {location && (
+
+      {picking && (
+        <div className="pick-banner">
+          <span>{pickPos ? 'Confermi questa posizione?' : 'Tocca la mappa nel punto esatto'}</span>
+          <div className="pick-actions">
+            {pickPos && (
+              <button className="pick-btn confirm" onClick={() => confirmPick(pickPos)}>
+                ✅ Conferma qui
+              </button>
+            )}
+            <button
+              className="pick-btn"
+              onClick={() => {
+                if (location) confirmPick(location)
+                else if (geoStatus === 'denied') alert(GEO_DENIED_HELP)
+                else onRequestLocation()
+              }}
+            >
+              📍 Usa la mia posizione
+            </button>
+            <button className="pick-btn cancel" onClick={cancelPick}>
+              Annulla
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!picking && (
         <button
-          className="locate-btn"
-          title="Vai alla mia posizione"
-          onClick={() => leafletRef.current?.setView([location.lat, location.lng], 16)}
+          className="fab"
+          title="Proponi un nuovo punto"
+          onClick={() => {
+            setPickPos(null)
+            setPicking(true)
+          }}
         >
-          🎯
+          ＋
         </button>
       )}
+
+      <button
+        className="locate-btn"
+        title={location ? 'Vai alla mia posizione' : 'Attiva la posizione'}
+        onClick={handleLocate}
+      >
+        {location ? '🎯' : geoStatus === 'prompting' ? '⏳' : '📡'}
+      </button>
     </div>
   )
 }

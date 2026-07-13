@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import { db } from '../firebase'
 
@@ -49,16 +49,66 @@ export function useUsers(enabled) {
   return useLiveQuery(() => collection(db, 'users'), [], enabled)
 }
 
+// status: 'idle' (mai chiesta) | 'prompting' | 'granted' | 'denied' | 'unavailable'
+// request() va chiamata da un gesto utente (tasto): su iOS il prompt
+// del permesso non appare in modo affidabile senza interazione.
 export function useGeolocation() {
-  const [pos, setPos] = useState(null)
-  useEffect(() => {
-    if (!navigator.geolocation) return
-    const id = navigator.geolocation.watchPosition(
-      (p) => setPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => {},
+  const [location, setLocation] = useState(null)
+  const [status, setStatus] = useState('idle')
+  const watchRef = useRef(null)
+
+  const request = useCallback(() => {
+    if (!navigator.geolocation) {
+      setStatus('unavailable')
+      return
+    }
+    if (watchRef.current != null) return
+    setStatus((s) => (s === 'granted' ? s : 'prompting'))
+    watchRef.current = navigator.geolocation.watchPosition(
+      (p) => {
+        setStatus('granted')
+        setLocation({ lat: p.coords.latitude, lng: p.coords.longitude })
+      },
+      (err) => {
+        if (err.code === 1) {
+          setStatus('denied')
+          if (watchRef.current != null) {
+            navigator.geolocation.clearWatch(watchRef.current)
+            watchRef.current = null
+          }
+        }
+      },
       { enableHighAccuracy: true, maximumAge: 15000 }
     )
-    return () => navigator.geolocation.clearWatch(id)
   }, [])
-  return pos
+
+  useEffect(() => {
+    let cancelled = false
+    // Auto-avvio solo se il permesso risulta già concesso; altrimenti
+    // aspettiamo che l'utente tocchi il tasto posizione.
+    if (navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: 'geolocation' })
+        .then((r) => {
+          if (cancelled) return
+          if (r.state === 'granted') request()
+          else if (r.state === 'denied') setStatus('denied')
+        })
+        .catch(() => request())
+    } else {
+      request()
+    }
+    return () => {
+      cancelled = true
+      if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current)
+    }
+  }, [request])
+
+  return { location, status, request }
 }
+
+export const GEO_DENIED_HELP =
+  'La posizione è bloccata per questo sito. Per riattivarla:\n\n' +
+  '• iPhone (Safari): tocca "AA"/icona nella barra indirizzo → Impostazioni sito → Posizione → Consenti. ' +
+  'Oppure Impostazioni iPhone → Privacy e sicurezza → Localizzazione → Safari.\n\n' +
+  '• Android (Chrome): tocca il lucchetto nella barra indirizzo → Autorizzazioni → Posizione → Consenti.'
