@@ -10,26 +10,34 @@ const SUGGESTION_STATUS = {
   rejected: { label: 'Rifiutata', color: '#dc2626' },
 }
 
+const TYPE_LABELS = { add: '🆕 Nuovo punto', edit: '✏️ Modifica', remove: '🗑 Rimozione' }
+
 function SuggestionCard({ s, categories, authorName, actions }) {
   const cat = categories.find((c) => c.id === s.payload.category)
+  const isRemove = s.type === 'remove'
   return (
     <div className="card">
       <div className="card-head">
         <strong>
-          {s.type === 'add' ? '🆕 Nuovo punto' : '✏️ Modifica'}: {s.payload.name}
+          {TYPE_LABELS[s.type] || s.type}: {s.payload.name}
         </strong>
         <span className="status-chip" style={{ background: SUGGESTION_STATUS[s.status]?.color }}>
           {SUGGESTION_STATUS[s.status]?.label}
         </span>
       </div>
-      <p className="small muted">
-        {cat ? `${cat.emoji} ${cat.label}` : s.payload.category} · {STATUSES[s.payload.status]?.label}
-        {authorName && ` · da ${authorName}`}
-      </p>
-      {s.payload.description && <p className="small">{s.payload.description}</p>}
-      <p className="small muted">
-        📍 {s.payload.lat.toFixed(5)}, {s.payload.lng.toFixed(5)}
-      </p>
+      {!isRemove && (
+        <>
+          <p className="small muted">
+            {cat ? `${cat.emoji} ${cat.label}` : s.payload.category} · {STATUSES[s.payload.status]?.label}
+            {authorName && ` · da ${authorName}`}
+          </p>
+          {s.payload.description && <p className="small">{s.payload.description}</p>}
+          <p className="small muted">
+            📍 {s.payload.lat.toFixed(5)}, {s.payload.lng.toFixed(5)}
+          </p>
+        </>
+      )}
+      {isRemove && authorName && <p className="small muted">da {authorName}</p>}
       {s.note && <p className="small">💬 {s.note}</p>}
       {s.payload.photoFileIds?.length > 0 && (
         <div className="photo-strip">
@@ -50,40 +58,55 @@ export default function SuggestionsTab({ user, isAdmin, categories }) {
   const userNames = Object.fromEntries(users.map((u) => [u.id, u.displayName]))
 
   async function approve(s) {
-    const batch = writeBatch(db)
-    const pointData = {
-      ...s.payload,
-      updatedAt: serverTimestamp(),
-      updatedBy: user.uid,
-    }
-    if (s.type === 'add') {
-      batch.set(doc(collection(db, 'points')), {
-        ...pointData,
-        createdAt: serverTimestamp(),
-        createdBy: s.authorUid,
+    try {
+      const batch = writeBatch(db)
+      if (s.type === 'add') {
+        batch.set(doc(collection(db, 'points')), {
+          ...s.payload,
+          createdAt: serverTimestamp(),
+          createdBy: s.authorUid,
+          updatedAt: serverTimestamp(),
+          updatedBy: user.uid,
+        })
+      } else if (s.type === 'edit') {
+        batch.update(doc(db, 'points', s.pointId), {
+          ...s.payload,
+          updatedAt: serverTimestamp(),
+          updatedBy: user.uid,
+        })
+      } else if (s.type === 'remove') {
+        batch.delete(doc(db, 'points', s.pointId))
+      }
+      batch.update(doc(db, 'suggestions', s.id), {
+        status: 'approved',
+        reviewedBy: user.uid,
+        reviewedAt: serverTimestamp(),
       })
-    } else {
-      batch.update(doc(db, 'points', s.pointId), pointData)
+      await batch.commit()
+    } catch (err) {
+      alert('Approvazione fallita: ' + err.message)
     }
-    batch.update(doc(db, 'suggestions', s.id), {
-      status: 'approved',
-      reviewedBy: user.uid,
-      reviewedAt: serverTimestamp(),
-    })
-    await batch.commit()
   }
 
   async function reject(s) {
-    await updateDoc(doc(db, 'suggestions', s.id), {
-      status: 'rejected',
-      reviewedBy: user.uid,
-      reviewedAt: serverTimestamp(),
-    })
+    try {
+      await updateDoc(doc(db, 'suggestions', s.id), {
+        status: 'rejected',
+        reviewedBy: user.uid,
+        reviewedAt: serverTimestamp(),
+      })
+    } catch (err) {
+      alert('Rifiuto fallito: ' + err.message)
+    }
   }
 
   async function removeMine(s) {
     if (!confirm('Ritirare questa proposta?')) return
-    await deleteDoc(doc(db, 'suggestions', s.id))
+    try {
+      await deleteDoc(doc(db, 'suggestions', s.id))
+    } catch (err) {
+      alert('Ritiro fallito: ' + err.message)
+    }
   }
 
   return (

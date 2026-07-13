@@ -24,7 +24,11 @@ export default function MoreTab({ user, profile, isAdmin, categories }) {
     const promoting = !u.isAdmin
     if (!confirm(`${promoting ? 'Promuovere' : 'Rimuovere'} ${u.displayName} ${promoting ? 'ad' : 'da'} amministratore?`))
       return
-    await updateDoc(doc(db, 'users', u.id), { isAdmin: promoting })
+    try {
+      await updateDoc(doc(db, 'users', u.id), { isAdmin: promoting })
+    } catch (err) {
+      alert('Operazione fallita: ' + err.message)
+    }
   }
 
   async function seedCategories() {

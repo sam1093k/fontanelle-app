@@ -1,4 +1,4 @@
-import { deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { STATUSES } from '../constants'
 import { distanceMeters, formatDistance } from '../lib/geo'
@@ -9,17 +9,45 @@ export default function PointDetail({ point, categories, location, isAdmin, user
   const dist = location ? distanceMeters(location, point) : null
 
   async function adminSetStatus(status) {
-    await updateDoc(doc(db, 'points', point.id), {
-      status,
-      updatedAt: serverTimestamp(),
-      updatedBy: user.uid,
-    })
+    try {
+      await updateDoc(doc(db, 'points', point.id), {
+        status,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid,
+      })
+    } catch (err) {
+      alert('Cambio stato fallito: ' + err.message)
+    }
   }
 
   async function adminDelete() {
     if (!confirm(`Eliminare definitivamente "${point.name}"?`)) return
-    await deleteDoc(doc(db, 'points', point.id))
-    onClose()
+    try {
+      await deleteDoc(doc(db, 'points', point.id))
+      onClose()
+    } catch (err) {
+      alert('Eliminazione fallita: ' + err.message)
+    }
+  }
+
+  async function proposeRemoval() {
+    const note = prompt('Perché questo punto va rimosso? (facoltativo)')
+    if (note === null) return
+    try {
+      await addDoc(collection(db, 'suggestions'), {
+        type: 'remove',
+        pointId: point.id,
+        payload: { name: point.name },
+        note: note.trim().slice(0, 500),
+        authorUid: user.uid,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      })
+      alert('Proposta di rimozione inviata ✅ Un admin la esaminerà.')
+      onClose()
+    } catch (err) {
+      alert('Invio fallito: ' + err.message)
+    }
   }
 
   return (
@@ -65,6 +93,12 @@ export default function PointDetail({ point, categories, location, isAdmin, user
         <button className="button" onClick={() => onProposeEdit(point)}>
           ✏️ Proponi una modifica
         </button>
+
+        {!isAdmin && (
+          <button className="button secondary" onClick={proposeRemoval}>
+            🗑 Proponi la rimozione
+          </button>
+        )}
 
         {isAdmin && (
           <div className="admin-box">

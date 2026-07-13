@@ -56,12 +56,17 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['type', 'pointId', 'payload', 'note', 'authorUid', 'status', 'createdAt'])
         && request.resource.data.authorUid == request.auth.uid
         && request.resource.data.status == 'pending'
-        && request.resource.data.type in ['add', 'edit']
+        && request.resource.data.type in ['add', 'edit', 'remove']
         && (request.resource.data.type == 'add'
               ? request.resource.data.pointId == null
               : (request.resource.data.pointId is string
                  && exists(/databases/$(database)/documents/points/$(request.resource.data.pointId))))
-        && validPayload(request.resource.data.payload)
+        // Per 'remove' il payload contiene solo il nome (snapshot per la coda admin).
+        && (request.resource.data.type == 'remove'
+              ? (request.resource.data.payload.keys().hasOnly(['name'])
+                 && request.resource.data.payload.name is string
+                 && request.resource.data.payload.name.size() <= 100)
+              : validPayload(request.resource.data.payload))
         && request.resource.data.note is string && request.resource.data.note.size() <= 500
         && request.resource.data.createdAt == request.time;
       // Solo transizione pending -> approved/rejected, solo admin.
