@@ -1,5 +1,5 @@
 {
-  "name": "your-worker-name-worker",
+  "name": "fontanelle-app-photos-worker",
   "private": true,
   "type": "module",
   "scripts": {

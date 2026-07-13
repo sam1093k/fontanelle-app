@@ -17,7 +17,7 @@ App privata (PWA) per mappare punti di interesse con stato, categorie, foto e fl
 3. **Firestore Database** → crea database (regione `europe-west`, modalità production).
 4. Impostazioni progetto → Le tue app → aggiungi **app Web** → copia la config.
 5. `cd web && copy .env.example .env.local` e incolla i valori della config.
-6. Metti il project ID in `.firebaserc`.
+6. `copy .firebaserc.example .firebaserc` (dalla root) e metti il tuo project ID reale. Questo file è in `.gitignore`: resta solo sul tuo computer, non finisce mai nel repo.
 7. Deploy di regole e indici:
    ```
    npm install -g firebase-tools
@@ -36,7 +36,7 @@ App privata (PWA) per mappare punti di interesse con stato, categorie, foto e fl
 ### 3. Cloudflare Worker
 
 1. Account gratuito su [cloudflare.com](https://dash.cloudflare.com/sign-up) (non serve carta).
-2. In `worker/wrangler.toml` imposta `FIREBASE_PROJECT_ID` e `ALLOWED_ORIGINS`.
+2. `cd worker && copy wrangler.toml.example wrangler.toml` e imposta `name`, `FIREBASE_PROJECT_ID` e `ALLOWED_ORIGINS`. Anche questo file è in `.gitignore`.
 3. Deploy:
    ```
    cd worker

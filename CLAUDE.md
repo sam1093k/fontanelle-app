@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Deploy worker | `cd worker && npx wrangler deploy` |
 | Rules emulator | `firebase emulators:start` |
 
-There are no tests or linters configured yet. Local config lives in `web/.env.local` (see `web/.env.example`); `.firebaserc` and `worker/wrangler.toml` hold placeholder project IDs.
+There are no tests or linters configured yet. Local config lives in `web/.env.local`, `.firebaserc`, and `worker/wrangler.toml` — all three are gitignored (never committed, real project ID and Worker name stay local-only) and have `.example` counterparts checked into the repo as templates.
 
 ## Architecture — the parts that span files
 

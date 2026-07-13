@@ -6,5 +6,5 @@ compatibility_date = "2026-01-01"
 #   npx wrangler secret put TELEGRAM_BOT_TOKEN
 #   npx wrangler secret put TELEGRAM_CHAT_ID
 [vars]
-FIREBASE_PROJECT_ID = "YOUR_FIREBASE_PROJECT_ID"
-ALLOWED_ORIGINS = "http://localhost:5173,https://YOUR_FIREBASE_PROJECT_ID.web.app"
+FIREBASE_PROJECT_ID = "your-firebase-project-id"
+ALLOWED_ORIGINS = "http://localhost:5173,https://your-firebase-project-id.web.app"

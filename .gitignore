@@ -11,6 +11,12 @@ dist/
 !.dev.vars.example
 !.env.example
 
+# Contengono l'ID progetto Firebase reale e il nome del Worker: mai nel repo.
+.firebaserc
+worker/wrangler.toml
+!.firebaserc.example
+!worker/wrangler.toml.example
+
 # Tooling locale (mai nel repo: contiene percorsi/permessi locali)
 .claude/
 .agents/
