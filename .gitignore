@@ -10,3 +10,8 @@ dist/
 .dev.vars*
 !.dev.vars.example
 !.env.example
+
+# Tooling locale (mai nel repo: contiene percorsi/permessi locali)
+.claude/
+.agents/
+skills-lock.json
