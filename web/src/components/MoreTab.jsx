@@ -14,7 +14,13 @@ function slugify(s) {
     .replace(/^-|-$/g, '')
 }
 
-export default function MoreTab({ user, profile, isAdmin, categories }) {
+const THEME_OPTIONS = [
+  { id: 'system', label: 'Sistema', icon: '🌗' },
+  { id: 'light', label: 'Chiaro', icon: '☀️' },
+  { id: 'dark', label: 'Scuro', icon: '🌙' },
+]
+
+export default function MoreTab({ user, profile, isAdmin, categories, theme, onSetTheme }) {
   const users = useUsers(isAdmin)
   const [newLabel, setNewLabel] = useState('')
   const [newEmoji, setNewEmoji] = useState('📍')
@@ -93,6 +99,20 @@ export default function MoreTab({ user, profile, isAdmin, categories }) {
         </p>
         <p className="small muted">{user.email}</p>
         <button className="button secondary" onClick={logout}>Esci</button>
+      </div>
+
+      <h3>Aspetto</h3>
+      <div className="theme-picker">
+        {THEME_OPTIONS.map((t) => (
+          <button
+            key={t.id}
+            className={`theme-btn ${theme === t.id ? 'active' : ''}`}
+            onClick={() => onSetTheme(t.id)}
+          >
+            <span>{t.icon}</span>
+            <span>{t.label}</span>
+          </button>
+        ))}
       </div>
 
       {isAdmin && (

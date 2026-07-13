@@ -4,17 +4,24 @@ import 'leaflet/dist/leaflet.css'
 import { STATUSES } from '../constants'
 import { GEO_DENIED_HELP } from '../hooks/useData'
 
+const TILE_URL = {
+  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+}
+
 export default function MapView({
   points,
   categories,
   location,
   geoStatus,
+  theme,
   onRequestLocation,
   onSelect,
   onPickConfirm,
 }) {
   const elRef = useRef(null)
   const mapObj = useRef(null)
+  const tilesRef = useRef(null)
   const markersRef = useRef(new Map())
   const meMarkerRef = useRef(null)
   const pickMarkerRef = useRef(null)
@@ -31,31 +38,30 @@ export default function MapView({
   useEffect(() => {
     const map = L.map(elRef.current, { zoomControl: false }).setView([42.5, 12.5], 6)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
-    // Tile Carto (gratuite, retina, con variante scura che segue il tema di sistema).
-    const darkQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    const tileUrl = (dark) =>
-      dark
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-    const tiles = L.tileLayer(tileUrl(darkQuery.matches), {
+    // Tile Carto (gratuite, retina, con variante scura secondo il tema scelto in Altro).
+    const tiles = L.tileLayer(TILE_URL[theme] || TILE_URL.light, {
       attribution:
         '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 20,
     }).addTo(map)
-    const onSchemeChange = (e) => tiles.setUrl(tileUrl(e.matches))
-    darkQuery.addEventListener('change', onSchemeChange)
+    tilesRef.current = tiles
     map.on('click', (e) => {
       if (!pickingRef.current) return
       setPickPos({ lat: e.latlng.lat, lng: e.latlng.lng })
     })
     mapObj.current = map
     return () => {
-      darkQuery.removeEventListener('change', onSchemeChange)
       map.remove()
       mapObj.current = null
+      tilesRef.current = null
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cambia i tile quando l'utente cambia tema da Altro > Aspetto.
+  useEffect(() => {
+    tilesRef.current?.setUrl(TILE_URL[theme] || TILE_URL.light)
+  }, [theme])
 
   // Sincronizza i marker con i punti (realtime).
   useEffect(() => {

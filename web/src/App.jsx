@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { logout, useAuth } from './hooks/useAuth'
 import { useCategories, useGeolocation, usePoints } from './hooks/useData'
+import { useTheme } from './hooks/useTheme'
 import AuthGate from './components/AuthGate'
 import MapView from './components/MapView'
 import PointList from './components/PointList'
@@ -56,11 +57,12 @@ const TABS = [
 
 export default function App() {
   const { user, profile, loading, isAdmin, approved } = useAuth()
+  const themeState = useTheme() // applica data-theme sull'<html> anche prima del login
 
   if (loading) return <div className="center-page">Caricamento…</div>
   if (!user) return <AuthGate />
   if (!approved) return <PendingScreen profile={profile} />
-  return <Shell user={user} profile={profile} isAdmin={isAdmin} />
+  return <Shell user={user} profile={profile} isAdmin={isAdmin} themeState={themeState} />
 }
 
 // Whitelist: account registrato ma non ancora approvato da un admin.
@@ -90,7 +92,7 @@ function PendingScreen({ profile }) {
   )
 }
 
-function Shell({ user, profile, isAdmin }) {
+function Shell({ user, profile, isAdmin, themeState }) {
   const [tab, setTab] = useState('map')
   const points = usePoints()
   const categories = useCategories()
@@ -112,6 +114,7 @@ function Shell({ user, profile, isAdmin }) {
             categories={categories}
             location={location}
             geoStatus={geoStatus}
+            theme={themeState.effective}
             onRequestLocation={requestLocation}
             onSelect={setSelected}
             onPickConfirm={(coords) => setForm({ type: 'add', coords })}
@@ -129,7 +132,14 @@ function Shell({ user, profile, isAdmin }) {
           <SuggestionsTab user={user} isAdmin={isAdmin} categories={categories} />
         )}
         {tab === 'more' && (
-          <MoreTab user={user} profile={profile} isAdmin={isAdmin} categories={categories} />
+          <MoreTab
+            user={user}
+            profile={profile}
+            isAdmin={isAdmin}
+            categories={categories}
+            theme={themeState.theme}
+            onSetTheme={themeState.setTheme}
+          />
         )}
       </main>
 
