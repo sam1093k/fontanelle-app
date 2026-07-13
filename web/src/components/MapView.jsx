@@ -22,6 +22,7 @@ export default function MapView({
 
   const [picking, setPicking] = useState(false)
   const [pickPos, setPickPos] = useState(null)
+  const [showGeoHelp, setShowGeoHelp] = useState(false)
   const pickingRef = useRef(false)
   pickingRef.current = picking
 
@@ -140,7 +141,7 @@ export default function MapView({
     if (location) {
       mapObj.current?.setView([location.lat, location.lng], 16)
     } else if (geoStatus === 'denied') {
-      alert(GEO_DENIED_HELP)
+      setShowGeoHelp(true)
     } else {
       onRequestLocation()
     }
@@ -163,7 +164,7 @@ export default function MapView({
               className="pick-btn"
               onClick={() => {
                 if (location) confirmPick(location)
-                else if (geoStatus === 'denied') alert(GEO_DENIED_HELP)
+                else if (geoStatus === 'denied') setShowGeoHelp(true)
                 else onRequestLocation()
               }}
             >
@@ -196,6 +197,15 @@ export default function MapView({
       >
         {location ? '🎯' : geoStatus === 'prompting' ? '⏳' : '📡'}
       </button>
+
+      {showGeoHelp && (
+        <div className="geo-help">
+          <p>{GEO_DENIED_HELP}</p>
+          <button className="button" onClick={() => setShowGeoHelp(false)}>
+            Ho capito
+          </button>
+        </div>
+      )}
     </div>
   )
 }

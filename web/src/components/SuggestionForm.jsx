@@ -155,7 +155,7 @@ export default function SuggestionForm({ mode, categories, user, location, geoSt
                 setLat(location.lat)
                 setLng(location.lng)
               } else if (geoStatus === 'denied') {
-                alert(GEO_DENIED_HELP)
+                setError(GEO_DENIED_HELP)
               } else {
                 onRequestLocation()
                 setError('Attivazione posizione in corso: consenti l’accesso e ripremi il tasto.')

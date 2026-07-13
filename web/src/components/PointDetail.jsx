@@ -1,14 +1,26 @@
+import { useState } from 'react'
 import { addDoc, collection, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { STATUSES } from '../constants'
 import { distanceMeters, formatDistance } from '../lib/geo'
 import PhotoImg from './PhotoImg'
 
+// Niente confirm()/prompt()/alert() nativi: nelle PWA installate su iOS
+// spesso non vengono mostrati (il tasto sembra "cliccare a vuoto").
+// Tutte le conferme e gli errori sono elementi dell'interfaccia.
 export default function PointDetail({ point, categories, location, isAdmin, user, onClose, onProposeEdit }) {
   const cat = categories.find((c) => c.id === point.category)
   const dist = location ? distanceMeters(location, point) : null
 
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [removalOpen, setRemovalOpen] = useState(false)
+  const [removalNote, setRemovalNote] = useState('')
+  const [removalSent, setRemovalSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
   async function adminSetStatus(status) {
+    setError('')
     try {
       await updateDoc(doc(db, 'points', point.id), {
         status,
@@ -16,37 +28,42 @@ export default function PointDetail({ point, categories, location, isAdmin, user
         updatedBy: user.uid,
       })
     } catch (err) {
-      alert('Cambio stato fallito: ' + err.message)
+      setError('Cambio stato fallito: ' + err.message)
     }
   }
 
   async function adminDelete() {
-    if (!confirm(`Eliminare definitivamente "${point.name}"?`)) return
+    setError('')
+    setBusy(true)
     try {
       await deleteDoc(doc(db, 'points', point.id))
       onClose()
     } catch (err) {
-      alert('Eliminazione fallita: ' + err.message)
+      setError('Eliminazione fallita: ' + err.message)
+      setConfirmingDelete(false)
+    } finally {
+      setBusy(false)
     }
   }
 
-  async function proposeRemoval() {
-    const note = prompt('Perché questo punto va rimosso? (facoltativo)')
-    if (note === null) return
+  async function sendRemoval() {
+    setError('')
+    setBusy(true)
     try {
       await addDoc(collection(db, 'suggestions'), {
         type: 'remove',
         pointId: point.id,
         payload: { name: point.name },
-        note: note.trim().slice(0, 500),
+        note: removalNote.trim().slice(0, 500),
         authorUid: user.uid,
         status: 'pending',
         createdAt: serverTimestamp(),
       })
-      alert('Proposta di rimozione inviata ✅ Un admin la esaminerà.')
-      onClose()
+      setRemovalSent(true)
     } catch (err) {
-      alert('Invio fallito: ' + err.message)
+      setError('Invio fallito: ' + err.message)
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -81,6 +98,8 @@ export default function PointDetail({ point, categories, location, isAdmin, user
           </div>
         )}
 
+        {error && <p className="error">{error}</p>}
+
         <a
           className="button secondary"
           href={`https://www.google.com/maps/dir/?api=1&destination=${point.lat},${point.lng}`}
@@ -94,10 +113,36 @@ export default function PointDetail({ point, categories, location, isAdmin, user
           ✏️ Proponi una modifica
         </button>
 
-        {!isAdmin && (
-          <button className="button secondary" onClick={proposeRemoval}>
+        {!isAdmin && !removalOpen && !removalSent && (
+          <button className="button secondary" onClick={() => setRemovalOpen(true)}>
             🗑 Proponi la rimozione
           </button>
+        )}
+
+        {!isAdmin && removalOpen && !removalSent && (
+          <div className="inline-confirm">
+            <label className="small muted">
+              Perché va rimosso? (facoltativo)
+              <textarea
+                value={removalNote}
+                onChange={(e) => setRemovalNote(e.target.value)}
+                maxLength={500}
+                rows={2}
+              />
+            </label>
+            <div className="card-actions">
+              <button className="button danger" disabled={busy} onClick={sendRemoval}>
+                {busy ? 'Invio…' : 'Invia proposta di rimozione'}
+              </button>
+              <button className="button secondary" onClick={() => setRemovalOpen(false)}>
+                Annulla
+              </button>
+            </div>
+          </div>
+        )}
+
+        {removalSent && (
+          <p className="success">✅ Proposta di rimozione inviata: un admin la esaminerà.</p>
         )}
 
         {isAdmin && (
@@ -115,9 +160,25 @@ export default function PointDetail({ point, categories, location, isAdmin, user
                 </button>
               ))}
             </div>
-            <button className="button danger" onClick={adminDelete}>
-              🗑 Elimina punto
-            </button>
+            {!confirmingDelete ? (
+              <button className="button danger" onClick={() => setConfirmingDelete(true)}>
+                🗑 Elimina punto
+              </button>
+            ) : (
+              <div className="inline-confirm">
+                <p className="small">
+                  <strong>Eliminare definitivamente "{point.name}"?</strong>
+                </p>
+                <div className="card-actions">
+                  <button className="button danger" disabled={busy} onClick={adminDelete}>
+                    {busy ? 'Eliminazione…' : 'Sì, elimina'}
+                  </button>
+                  <button className="button secondary" onClick={() => setConfirmingDelete(false)}>
+                    Annulla
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { collection, deleteDoc, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
 import { STATUSES } from '../constants'
@@ -56,8 +57,11 @@ export default function SuggestionsTab({ user, isAdmin, categories }) {
   const pending = usePendingSuggestions(isAdmin)
   const users = useUsers(isAdmin)
   const userNames = Object.fromEntries(users.map((u) => [u.id, u.displayName]))
+  const [error, setError] = useState('')
+  const [confirmingWithdraw, setConfirmingWithdraw] = useState(null)
 
   async function approve(s) {
+    setError('')
     try {
       const batch = writeBatch(db)
       if (s.type === 'add') {
@@ -84,11 +88,12 @@ export default function SuggestionsTab({ user, isAdmin, categories }) {
       })
       await batch.commit()
     } catch (err) {
-      alert('Approvazione fallita: ' + err.message)
+      setError('Approvazione fallita: ' + err.message)
     }
   }
 
   async function reject(s) {
+    setError('')
     try {
       await updateDoc(doc(db, 'suggestions', s.id), {
         status: 'rejected',
@@ -96,21 +101,23 @@ export default function SuggestionsTab({ user, isAdmin, categories }) {
         reviewedAt: serverTimestamp(),
       })
     } catch (err) {
-      alert('Rifiuto fallito: ' + err.message)
+      setError('Rifiuto fallito: ' + err.message)
     }
   }
 
   async function removeMine(s) {
-    if (!confirm('Ritirare questa proposta?')) return
+    setError('')
     try {
       await deleteDoc(doc(db, 'suggestions', s.id))
+      setConfirmingWithdraw(null)
     } catch (err) {
-      alert('Ritiro fallito: ' + err.message)
+      setError('Ritiro fallito: ' + err.message)
     }
   }
 
   return (
     <div className="list-page">
+      {error && <p className="error">{error}</p>}
       {isAdmin && (
         <>
           <h3>Da approvare ({pending.length})</h3>
@@ -143,7 +150,14 @@ export default function SuggestionsTab({ user, isAdmin, categories }) {
           actions={
             s.status === 'pending' && (
               <div className="card-actions">
-                <button className="button secondary" onClick={() => removeMine(s)}>Ritira</button>
+                {confirmingWithdraw === s.id ? (
+                  <>
+                    <button className="button danger" onClick={() => removeMine(s)}>Confermo il ritiro</button>
+                    <button className="button secondary" onClick={() => setConfirmingWithdraw(null)}>Annulla</button>
+                  </>
+                ) : (
+                  <button className="button secondary" onClick={() => setConfirmingWithdraw(s.id)}>Ritira</button>
+                )}
               </div>
             )
           }

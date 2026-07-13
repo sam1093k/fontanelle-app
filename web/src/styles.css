@@ -50,7 +50,31 @@ body {
 .center-text { text-align: center; padding: 24px; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
-.error { color: var(--danger); font-size: 0.9rem; }
+.error { color: var(--danger); font-size: 0.9rem; white-space: pre-line; }
+.success { color: #16a34a; font-weight: 600; margin: 10px 0; }
+
+.inline-confirm {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.inline-confirm textarea { margin-top: 4px; }
+
+.geo-help {
+  position: absolute;
+  inset: 12px;
+  z-index: 1200;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  overflow-y: auto;
+  white-space: pre-line;
+  font-size: 0.92rem;
+}
 
 /* ---- Tab bar ---- */
 .tab-bar {

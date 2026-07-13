@@ -19,15 +19,15 @@ export default function MoreTab({ user, profile, isAdmin, categories }) {
   const [newLabel, setNewLabel] = useState('')
   const [newEmoji, setNewEmoji] = useState('📍')
   const [msg, setMsg] = useState('')
+  const [confirmingUser, setConfirmingUser] = useState(null)
 
   async function toggleAdmin(u) {
-    const promoting = !u.isAdmin
-    if (!confirm(`${promoting ? 'Promuovere' : 'Rimuovere'} ${u.displayName} ${promoting ? 'ad' : 'da'} amministratore?`))
-      return
+    setMsg('')
     try {
-      await updateDoc(doc(db, 'users', u.id), { isAdmin: promoting })
+      await updateDoc(doc(db, 'users', u.id), { isAdmin: !u.isAdmin })
+      setConfirmingUser(null)
     } catch (err) {
-      alert('Operazione fallita: ' + err.message)
+      setMsg('❌ Operazione fallita: ' + err.message)
     }
   }
 
@@ -79,9 +79,16 @@ export default function MoreTab({ user, profile, isAdmin, categories }) {
                 {u.isAdmin && <span className="chip">admin</span>}
               </div>
               {u.id !== user.uid ? (
-                <button className="button secondary" onClick={() => toggleAdmin(u)}>
-                  {u.isAdmin ? 'Rimuovi admin' : 'Rendi admin'}
-                </button>
+                confirmingUser === u.id ? (
+                  <span className="card-actions">
+                    <button className="button danger" onClick={() => toggleAdmin(u)}>Confermo</button>
+                    <button className="button secondary" onClick={() => setConfirmingUser(null)}>Annulla</button>
+                  </span>
+                ) : (
+                  <button className="button secondary" onClick={() => setConfirmingUser(u.id)}>
+                    {u.isAdmin ? 'Rimuovi admin' : 'Rendi admin'}
+                  </button>
+                )
               ) : (
                 <span className="small muted">(tu)</span>
               )}
