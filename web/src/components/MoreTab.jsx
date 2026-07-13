@@ -20,6 +20,32 @@ export default function MoreTab({ user, profile, isAdmin, categories }) {
   const [newEmoji, setNewEmoji] = useState('📍')
   const [msg, setMsg] = useState('')
   const [confirmingUser, setConfirmingUser] = useState(null)
+  const [requestSearch, setRequestSearch] = useState('')
+
+  // In attesa = mai approvati, non rifiutati, non admin.
+  const pendingUsers = users.filter((u) => u.approved !== true && u.rejected !== true && u.isAdmin !== true)
+  const shownRequests = pendingUsers.filter((u) =>
+    (u.displayName || '').toLowerCase().includes(requestSearch.trim().toLowerCase())
+  )
+  const activeUsers = users.filter((u) => u.approved === true || u.isAdmin === true)
+
+  async function approveUser(u) {
+    setMsg('')
+    try {
+      await updateDoc(doc(db, 'users', u.id), { approved: true, rejected: false })
+    } catch (err) {
+      setMsg('❌ Approvazione fallita: ' + err.message)
+    }
+  }
+
+  async function rejectUser(u) {
+    setMsg('')
+    try {
+      await updateDoc(doc(db, 'users', u.id), { approved: false, rejected: true })
+    } catch (err) {
+      setMsg('❌ Rifiuto fallito: ' + err.message)
+    }
+  }
 
   async function toggleAdmin(u) {
     setMsg('')
@@ -71,8 +97,34 @@ export default function MoreTab({ user, profile, isAdmin, categories }) {
 
       {isAdmin && (
         <>
+          <h3>Richieste di accesso {pendingUsers.length > 0 && `(${pendingUsers.length})`}</h3>
+          {pendingUsers.length === 0 && <p className="muted small">Nessuna richiesta in attesa.</p>}
+          {pendingUsers.length > 0 && (
+            <input
+              placeholder="Cerca per nome…"
+              value={requestSearch}
+              onChange={(e) => setRequestSearch(e.target.value)}
+              style={{ marginBottom: 10 }}
+            />
+          )}
+          {pendingUsers.length > 0 && shownRequests.length === 0 && (
+            <p className="muted small">Nessuna richiesta corrisponde a "{requestSearch}".</p>
+          )}
+          {shownRequests.map((u) => (
+            <div key={u.id} className="card row-card">
+              <div>
+                <strong>{u.displayName}</strong>
+                <span className="small muted"> in attesa</span>
+              </div>
+              <span className="card-actions">
+                <button className="button" onClick={() => approveUser(u)}>Accetta</button>
+                <button className="button danger" onClick={() => rejectUser(u)}>Rifiuta</button>
+              </span>
+            </div>
+          ))}
+
           <h3>Utenti</h3>
-          {users.map((u) => (
+          {activeUsers.map((u) => (
             <div key={u.id} className="card row-card">
               <div>
                 <strong>{u.displayName}</strong>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAuth } from './hooks/useAuth'
+import { logout, useAuth } from './hooks/useAuth'
 import { useCategories, useGeolocation, usePoints } from './hooks/useData'
 import AuthGate from './components/AuthGate'
 import MapView from './components/MapView'
@@ -18,11 +18,38 @@ const TABS = [
 ]
 
 export default function App() {
-  const { user, profile, loading, isAdmin } = useAuth()
+  const { user, profile, loading, isAdmin, approved } = useAuth()
 
   if (loading) return <div className="center-page">Caricamento…</div>
   if (!user) return <AuthGate />
+  if (!approved) return <PendingScreen profile={profile} />
   return <Shell user={user} profile={profile} isAdmin={isAdmin} />
+}
+
+// Whitelist: account registrato ma non ancora approvato da un admin.
+// Il profilo è ascoltato in realtime: appena l'admin accetta, si sblocca da solo.
+function PendingScreen({ profile }) {
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <h1>💧 Fontanelle</h1>
+        {profile?.rejected === true ? (
+          <p style={{ marginTop: 16 }}>❌ La tua richiesta di accesso è stata rifiutata.</p>
+        ) : (
+          <>
+            <p style={{ marginTop: 16 }}>⏳ Registrazione ricevuta!</p>
+            <p className="muted" style={{ marginTop: 8 }}>
+              Un amministratore deve approvare il tuo account. Questa schermata si sbloccherà
+              automaticamente appena verrai accettato.
+            </p>
+          </>
+        )}
+        <button className="button secondary" onClick={logout}>
+          Esci
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function Shell({ user, profile, isAdmin }) {

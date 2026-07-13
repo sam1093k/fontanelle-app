@@ -19,6 +19,14 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
+    // Whitelist: l'accesso ai dati richiede un account approvato da un admin.
+    // 'approved' non esiste alla registrazione (utente in attesa) e può
+    // essere impostato solo da un admin (vedi rules di /users).
+    function isApproved() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('approved', false) == true;
+    }
+
     function validStatus(s) {
       return s in ['active', 'inactive', 'maintenance', 'unknown'];
     }
@@ -39,19 +47,19 @@ service cloud.firestore {
     // I punti sono scrivibili solo dagli admin (l'approvazione di una
     // proposta avviene lato client admin con una batch write).
     match /points/{pointId} {
-      allow read: if signedIn();
+      allow read: if isApproved() || isAdmin();
       allow create, update, delete: if isAdmin();
     }
 
     match /categories/{categoryId} {
-      allow read: if signedIn();
+      allow read: if isApproved() || isAdmin();
       allow create, update, delete: if isAdmin();
     }
 
     // Gli utenti normali possono SOLO creare proposte (mai toccare points).
     match /suggestions/{suggestionId} {
       allow read: if isAdmin() || (signedIn() && resource.data.authorUid == request.auth.uid);
-      allow create: if signedIn()
+      allow create: if isApproved()
         && request.resource.data.keys().hasAll(['type', 'pointId', 'payload', 'note', 'authorUid', 'status', 'createdAt'])
         && request.resource.data.keys().hasOnly(['type', 'pointId', 'payload', 'note', 'authorUid', 'status', 'createdAt'])
         && request.resource.data.authorUid == request.auth.uid
@@ -93,8 +101,7 @@ service cloud.firestore {
             && request.resource.data.displayName.size() >= 1
             && request.resource.data.displayName.size() <= 50)
         || (isAdmin()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isAdmin'])
-            && request.resource.data.isAdmin is bool);
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isAdmin', 'approved', 'rejected']));
       allow delete: if false;
     }
   }

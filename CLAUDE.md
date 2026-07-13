@@ -30,6 +30,7 @@ There are no tests or linters configured yet. Local config lives in `web/.env.lo
 **Authorization lives entirely in `firestore.rules`; there is no server-side application code.** The security model:
 
 - `users/{uid}.isAdmin` is the only role flag. Rules forbid setting it at creation and self-modification; only an existing admin can change it (bootstrap: first admin is set manually in the Firebase console).
+- **Whitelist**: `users/{uid}.approved` gates all data access (points/categories reads, suggestion creation, and the photo Worker, which re-checks it via Firestore REST using the caller's own idToken). It cannot exist at signup and only admins can set it; new signups see a realtime "pending approval" screen until accepted (admin UI with name search in `MoreTab.jsx`). `rejected: true` shows a rejection screen.
 - Normal users can only **create** documents in `suggestions` (shape strictly validated in rules: exact key sets via `hasAll`/`hasOnly`, string lengths, coordinate ranges, category must exist, max 5 photos).
 - Only admins write to `points`/`categories`. Approving a suggestion is a **client-side batch write** performed by an admin (`SuggestionsTab.jsx`): apply payload to `points` + flip suggestion status atomically. Rules only allow the `pending → approved/rejected` transition.
 - Any change to the data model must be reflected in three places: the form (`SuggestionForm.jsx`), the payload validation in `firestore.rules`, and the approval write (`SuggestionsTab.jsx`).
@@ -43,6 +44,8 @@ There are no tests or linters configured yet. Local config lives in `web/.env.lo
 ## Conventions
 
 - UI copy is Italian; code identifiers/comments English or Italian as fits.
+- **Never use native `confirm()`/`prompt()`/`alert()`** — they frequently don't render in installed iOS PWAs (buttons appear to do nothing). All confirmations and errors are inline UI elements.
+- Worker secrets must be set via `wrangler secret bulk <json-file>`, never by piping stdin on Windows (PowerShell appends CRLF and corrupts the value — this broke the Telegram token once).
 - Status values are fixed keys (`active | inactive | maintenance | unknown`) defined in `web/src/constants.js` and duplicated in `firestore.rules` (`validStatus`) — change both together.
 - Categories are Firestore documents (admin-managed at runtime), not code constants; `SEED_CATEGORIES` is only the one-time seed.
 

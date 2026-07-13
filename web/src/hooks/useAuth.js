@@ -10,7 +10,7 @@ import { auth, db } from '../firebase'
 
 export function useAuth() {
   const [user, setUser] = useState(undefined) // undefined = in caricamento
-  const [profile, setProfile] = useState(null)
+  const [profile, setProfile] = useState(undefined) // undefined = in caricamento
 
   useEffect(() => onAuthStateChanged(auth, (u) => setUser(u ?? null)), [])
 
@@ -19,14 +19,16 @@ export function useAuth() {
       setProfile(null)
       return
     }
+    setProfile(undefined)
     return onSnapshot(doc(db, 'users', user.uid), (snap) => setProfile(snap.data() ?? null))
   }, [user?.uid])
 
   return {
     user: user ?? null,
-    profile,
-    loading: user === undefined,
+    profile: profile ?? null,
+    loading: user === undefined || (!!user && profile === undefined),
     isAdmin: profile?.isAdmin === true,
+    approved: profile?.approved === true || profile?.isAdmin === true,
   }
 }
 

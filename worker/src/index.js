@@ -21,6 +21,19 @@ async function verifyAuth(request, env) {
   }
 }
 
+// Whitelist: il documento utente è leggibile dal proprietario (rules isSelf),
+// quindi usiamo lo stesso idToken del client per verificare l'approvazione.
+async function isApprovedUser(request, env, payload) {
+  const idToken = (request.headers.get('Authorization') || '').slice(7)
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${payload.user_id}`,
+    { headers: { Authorization: `Bearer ${idToken}` } }
+  )
+  if (!res.ok) return false
+  const doc = await res.json()
+  return doc.fields?.approved?.booleanValue === true || doc.fields?.isAdmin?.booleanValue === true
+}
+
 function corsHeaders(request, env) {
   const origin = request.headers.get('Origin') || ''
   const allowed = env.ALLOWED_ORIGINS.split(',').map((s) => s.trim())
@@ -48,6 +61,7 @@ export default {
 
     const user = await verifyAuth(request, env)
     if (!user) return json({ error: 'unauthorized' }, 401, headers)
+    if (!(await isApprovedUser(request, env, user))) return json({ error: 'not_approved' }, 403, headers)
 
     // POST /upload — body: immagine JPEG. Inoltra al bot Telegram, ritorna il file_id.
     if (request.method === 'POST' && url.pathname === '/upload') {
