@@ -220,13 +220,15 @@ export default function MapView({
         </button>
       )}
 
-      <button
-        className="locate-btn"
-        title={location ? 'Vai alla mia posizione' : 'Attiva la posizione'}
-        onClick={handleLocate}
-      >
-        {location ? '🎯' : geoStatus === 'prompting' ? '⏳' : geoStatus === 'disabled' ? '🔒' : '📡'}
-      </button>
+      {!picking && (
+        <button
+          className="locate-btn"
+          title={location ? 'Vai alla mia posizione' : 'Attiva la posizione'}
+          onClick={handleLocate}
+        >
+          {location ? '🎯' : geoStatus === 'prompting' ? '⏳' : geoStatus === 'disabled' ? '🔒' : '📡'}
+        </button>
+      )}
 
       {showGeoHelp && (
         <div className="geo-help">
