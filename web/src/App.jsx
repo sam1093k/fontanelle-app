@@ -117,6 +117,7 @@ function Shell({ user, profile, isAdmin, themeState }) {
             location={location}
             geoStatus={geoStatus}
             theme={themeState.effective}
+            isAdmin={isAdmin}
             onRequestLocation={requestLocation}
             onSelect={setSelected}
             onPickConfirm={(coords) => setForm({ type: 'add', coords })}
@@ -180,6 +181,7 @@ function Shell({ user, profile, isAdmin, themeState }) {
           mode={form}
           categories={categories}
           user={user}
+          isAdmin={isAdmin}
           location={location}
           geoStatus={geoStatus}
           onRequestLocation={requestLocation}

@@ -15,6 +15,7 @@ export default function MapView({
   location,
   geoStatus,
   theme,
+  isAdmin,
   onRequestLocation,
   onSelect,
   onPickConfirm,
@@ -210,7 +211,7 @@ export default function MapView({
       {!picking && (
         <button
           className="fab"
-          title="Proponi un nuovo punto"
+          title={isAdmin ? 'Aggiungi un nuovo punto' : 'Proponi un nuovo punto'}
           onClick={() => {
             setPickPos(null)
             setPicking(true)

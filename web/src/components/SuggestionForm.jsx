@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { MAX_PHOTOS, STATUSES } from '../constants'
 import { uploadPhoto } from '../lib/photos'
@@ -8,7 +8,7 @@ import PhotoImg from './PhotoImg'
 import { GEO_DENIED_HELP } from '../hooks/useData'
 
 // mode: { type: 'add', coords: {lat,lng} } oppure { type: 'edit', point }
-export default function SuggestionForm({ mode, categories, user, location, geoStatus, onRequestLocation, onClose }) {
+export default function SuggestionForm({ mode, categories, user, isAdmin, location, geoStatus, onRequestLocation, onClose }) {
   const editing = mode.type === 'edit'
   const p = editing ? mode.point : null
 
@@ -67,24 +67,44 @@ export default function SuggestionForm({ mode, categories, user, location, geoSt
       return setError('Coordinate non valide')
     setBusy(true)
     try {
-      await addDoc(collection(db, 'suggestions'), {
-        type: editing ? 'edit' : 'add',
-        pointId: editing ? p.id : null,
-        payload: {
-          name: name.trim(),
-          category,
-          subcategory: subcategories.length > 0 ? subcategory : '',
-          status,
-          description: description.trim(),
-          lat: nLat,
-          lng: nLng,
-          photoFileIds,
-        },
-        note: note.trim(),
-        authorUid: user.uid,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      })
+      const payload = {
+        name: name.trim(),
+        category,
+        subcategory: subcategories.length > 0 ? subcategory : '',
+        status,
+        description: description.trim(),
+        lat: nLat,
+        lng: nLng,
+        photoFileIds,
+      }
+      if (isAdmin) {
+        // Admin: nessuna approvazione necessaria, scrive direttamente su points.
+        if (editing) {
+          await updateDoc(doc(db, 'points', p.id), {
+            ...payload,
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid,
+          })
+        } else {
+          await addDoc(collection(db, 'points'), {
+            ...payload,
+            createdAt: serverTimestamp(),
+            createdBy: user.uid,
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid,
+          })
+        }
+      } else {
+        await addDoc(collection(db, 'suggestions'), {
+          type: editing ? 'edit' : 'add',
+          pointId: editing ? p.id : null,
+          payload,
+          note: note.trim(),
+          authorUid: user.uid,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+        })
+      }
       setDone(true)
     } catch (err) {
       setError('Invio fallito: ' + err.message)
@@ -97,8 +117,12 @@ export default function SuggestionForm({ mode, categories, user, location, geoSt
     return (
       <div className="modal-overlay" onClick={onClose}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
-          <h2>✅ Proposta inviata</h2>
-          <p>Un amministratore la esaminerà. Puoi seguirne lo stato nella scheda Proposte.</p>
+          <h2>✅ {isAdmin ? (editing ? 'Modifica pubblicata' : 'Punto pubblicato') : 'Proposta inviata'}</h2>
+          <p>
+            {isAdmin
+              ? 'Nessuna approvazione necessaria: è già visibile a tutti.'
+              : 'Un amministratore la esaminerà. Puoi seguirne lo stato nella scheda Proposte.'}
+          </p>
           <button className="button" onClick={onClose}>Chiudi</button>
         </div>
       </div>
@@ -222,14 +246,18 @@ export default function SuggestionForm({ mode, categories, user, location, geoSt
             </div>
           )}
 
-          <label>
-            Nota per gli admin
-            <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
-          </label>
+          {!isAdmin && (
+            <label>
+              Nota per gli admin
+              <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
+            </label>
+          )}
 
           {error && <p className="error">{error}</p>}
           <button type="submit" className="button" disabled={busy || uploading}>
-            {busy ? 'Invio…' : 'Invia proposta'}
+            {busy
+              ? isAdmin ? 'Pubblicazione…' : 'Invio…'
+              : isAdmin ? (editing ? 'Salva modifica' : 'Pubblica punto') : 'Invia proposta'}
           </button>
         </form>
       </div>

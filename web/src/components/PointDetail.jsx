@@ -111,7 +111,7 @@ export default function PointDetail({ point, categories, location, isAdmin, user
         </a>
 
         <button className="button" onClick={() => onProposeEdit(point)}>
-          ✏️ Proponi una modifica
+          ✏️ {isAdmin ? 'Modifica' : 'Proponi una modifica'}
         </button>
 
         {!isAdmin && !removalOpen && !removalSent && (
