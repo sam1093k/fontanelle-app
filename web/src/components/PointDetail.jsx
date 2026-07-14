@@ -85,6 +85,7 @@ export default function PointDetail({ point, categories, location, isAdmin, user
             {STATUSES[point.status]?.label || point.status}
           </span>
           <span className="chip">{cat?.label || point.category}</span>
+          {point.subcategory && <span className="chip">{point.subcategory}</span>}
           {dist != null && <span className="chip">📍 {formatDistance(dist)}</span>}
         </div>
 

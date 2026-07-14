@@ -66,6 +66,7 @@ export default function PointList({ points, categories, location, onSelect }) {
               <strong>{p.name}</strong>
               <span className="muted small">
                 {catMap[p.category]?.label || p.category}
+                {p.subcategory && ` · ${p.subcategory}`}
                 {p._dist != null && ` · ${formatDistance(p._dist)}`}
               </span>
             </div>

@@ -45,6 +45,16 @@ export function usePendingSuggestions(enabled) {
   )
 }
 
+// Cronologia: proposte già valutate (approvate o rifiutate). Solo admin,
+// serve al pulsante "Svuota cronologia" nella tab Proposte.
+export function useReviewedSuggestions(enabled) {
+  return useLiveQuery(
+    () => query(collection(db, 'suggestions'), where('status', 'in', ['approved', 'rejected'])),
+    [],
+    enabled
+  )
+}
+
 export function useUsers(enabled) {
   return useLiveQuery(() => collection(db, 'users'), [], enabled)
 }

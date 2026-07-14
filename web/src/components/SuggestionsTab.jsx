@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { collection, deleteDoc, doc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
 import { STATUSES } from '../constants'
-import { useMySuggestions, usePendingSuggestions, useUsers } from '../hooks/useData'
+import { useMySuggestions, usePendingSuggestions, useReviewedSuggestions, useUsers } from '../hooks/useData'
 import PhotoImg from './PhotoImg'
 
 const SUGGESTION_STATUS = {
@@ -29,7 +29,9 @@ function SuggestionCard({ s, categories, authorName, actions }) {
       {!isRemove && (
         <>
           <p className="small muted">
-            {cat ? `${cat.emoji} ${cat.label}` : s.payload.category} · {STATUSES[s.payload.status]?.label}
+            {cat ? `${cat.emoji} ${cat.label}` : s.payload.category}
+            {s.payload.subcategory && ` · ${s.payload.subcategory}`}
+            {' · '}{STATUSES[s.payload.status]?.label}
             {authorName && ` · da ${authorName}`}
           </p>
           {s.payload.description && <p className="small">{s.payload.description}</p>}
@@ -55,10 +57,13 @@ function SuggestionCard({ s, categories, authorName, actions }) {
 export default function SuggestionsTab({ user, isAdmin, categories }) {
   const mine = useMySuggestions(user.uid)
   const pending = usePendingSuggestions(isAdmin)
+  const reviewed = useReviewedSuggestions(isAdmin)
   const users = useUsers(isAdmin)
   const userNames = Object.fromEntries(users.map((u) => [u.id, u.displayName]))
   const [error, setError] = useState('')
   const [confirmingWithdraw, setConfirmingWithdraw] = useState(null)
+  const [confirmingClear, setConfirmingClear] = useState(false)
+  const [clearing, setClearing] = useState(false)
 
   async function approve(s) {
     setError('')
@@ -115,6 +120,27 @@ export default function SuggestionsTab({ user, isAdmin, categories }) {
     }
   }
 
+  // Svuota la cronologia (proposte già approvate/rifiutate, di tutti gli
+  // utenti). Batch da 450: il limite Firestore è 500 operazioni per batch.
+  async function clearHistory() {
+    setError('')
+    setClearing(true)
+    try {
+      for (let i = 0; i < reviewed.length; i += 450) {
+        const batch = writeBatch(db)
+        for (const s of reviewed.slice(i, i + 450)) {
+          batch.delete(doc(db, 'suggestions', s.id))
+        }
+        await batch.commit()
+      }
+      setConfirmingClear(false)
+    } catch (err) {
+      setError('Svuotamento fallito: ' + err.message)
+    } finally {
+      setClearing(false)
+    }
+  }
+
   return (
     <div className="list-page">
       {error && <p className="error">{error}</p>}
@@ -136,6 +162,33 @@ export default function SuggestionsTab({ user, isAdmin, categories }) {
               }
             />
           ))}
+
+          <h3>Cronologia ({reviewed.length})</h3>
+          <p className="muted small">
+            Proposte già approvate o rifiutate, di tutti gli utenti.
+          </p>
+          {reviewed.length > 0 && !confirmingClear && (
+            <button className="button secondary" onClick={() => setConfirmingClear(true)}>
+              🧹 Svuota cronologia
+            </button>
+          )}
+          {confirmingClear && (
+            <div className="inline-confirm">
+              <p className="small">
+                <strong>Eliminare definitivamente {reviewed.length} proposte già valutate?</strong>{' '}
+                Spariranno anche dalla sezione "Le mie proposte" di ogni utente. I punti già
+                pubblicati non vengono toccati.
+              </p>
+              <div className="card-actions">
+                <button className="button danger" disabled={clearing} onClick={clearHistory}>
+                  {clearing ? 'Eliminazione…' : 'Sì, svuota'}
+                </button>
+                <button className="button secondary" disabled={clearing} onClick={() => setConfirmingClear(false)}>
+                  Annulla
+                </button>
+              </div>
+            </div>
+          )}
           <hr />
         </>
       )}

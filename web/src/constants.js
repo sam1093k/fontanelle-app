@@ -6,7 +6,7 @@ export const STATUSES = {
 }
 
 export const SEED_CATEGORIES = [
-  { id: 'fontanella', label: 'Fontanella', emoji: '💧' },
+  { id: 'acqua', label: 'Acqua', emoji: '💧', subcategories: ['Fontanella', 'Macchinetta', 'Distributore'] },
   { id: 'spot-mangiare', label: 'Spot per mangiare', emoji: '🍽️' },
 ]
 

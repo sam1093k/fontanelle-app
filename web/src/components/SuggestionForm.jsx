@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 import { MAX_PHOTOS, STATUSES } from '../constants'
@@ -14,6 +14,7 @@ export default function SuggestionForm({ mode, categories, user, location, geoSt
 
   const [name, setName] = useState(p?.name ?? '')
   const [category, setCategory] = useState(p?.category ?? categories[0]?.id ?? '')
+  const [subcategory, setSubcategory] = useState(p?.subcategory ?? '')
   const [status, setStatus] = useState(p?.status ?? 'active')
   const [description, setDescription] = useState(p?.description ?? '')
   const [lat, setLat] = useState(p?.lat ?? mode.coords?.lat ?? '')
@@ -24,6 +25,18 @@ export default function SuggestionForm({ mode, categories, user, location, geoSt
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+
+  // Sottocategorie della categoria selezionata (campo opzionale sul doc categoria).
+  const subcategories = categories.find((c) => c.id === category)?.subcategories || []
+
+  // Al cambio categoria: default sulla prima sottocategoria, o nessuna.
+  useEffect(() => {
+    if (subcategories.length > 0) {
+      if (!subcategories.includes(subcategory)) setSubcategory(subcategories[0])
+    } else if (subcategory !== '') {
+      setSubcategory('')
+    }
+  }, [category, categories]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function pickPhotos(e) {
     const files = [...e.target.files].slice(0, MAX_PHOTOS - photoFileIds.length)
@@ -60,6 +73,7 @@ export default function SuggestionForm({ mode, categories, user, location, geoSt
         payload: {
           name: name.trim(),
           category,
+          subcategory: subcategories.length > 0 ? subcategory : '',
           status,
           description: description.trim(),
           lat: nLat,
@@ -115,6 +129,19 @@ export default function SuggestionForm({ mode, categories, user, location, geoSt
               ))}
             </select>
           </label>
+
+          {subcategories.length > 0 && (
+            <label>
+              Tipo *
+              <select value={subcategory} onChange={(e) => setSubcategory(e.target.value)} required>
+                {subcategories.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <label>
             Stato *

@@ -32,10 +32,11 @@ service cloud.firestore {
     }
 
     function validPayload(p) {
-      return p.keys().hasAll(['name', 'category', 'status', 'description', 'lat', 'lng', 'photoFileIds'])
-        && p.keys().hasOnly(['name', 'category', 'status', 'description', 'lat', 'lng', 'photoFileIds'])
+      return p.keys().hasAll(['name', 'category', 'subcategory', 'status', 'description', 'lat', 'lng', 'photoFileIds'])
+        && p.keys().hasOnly(['name', 'category', 'subcategory', 'status', 'description', 'lat', 'lng', 'photoFileIds'])
         && p.name is string && p.name.size() >= 1 && p.name.size() <= 100
         && p.category is string
+        && p.subcategory is string && p.subcategory.size() <= 50
         && exists(/databases/$(database)/documents/categories/$(p.category))
         && validStatus(p.status)
         && p.description is string && p.description.size() <= 1000

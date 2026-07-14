@@ -39,6 +39,10 @@ export default function MoreTab({
   const [confirmingUser, setConfirmingUser] = useState(null)
   const [requestSearch, setRequestSearch] = useState('')
   const [showPrivacy, setShowPrivacy] = useState(false)
+  const [editingCat, setEditingCat] = useState(null) // id categoria in modifica
+  const [editLabel, setEditLabel] = useState('')
+  const [editEmoji, setEditEmoji] = useState('')
+  const [editSubs, setEditSubs] = useState('')
   const [exporting, setExporting] = useState(false)
   const [deleteStep, setDeleteStep] = useState('idle') // idle | confirm | password | busy
   const [deletePassword, setDeletePassword] = useState('')
@@ -85,6 +89,7 @@ export default function MoreTab({
       batch.set(doc(db, 'categories', c.id), {
         label: c.label,
         emoji: c.emoji,
+        subcategories: c.subcategories || [],
         createdAt: serverTimestamp(),
       })
     }
@@ -99,11 +104,41 @@ export default function MoreTab({
     await setDoc(doc(db, 'categories', id), {
       label: newLabel.trim(),
       emoji: newEmoji.trim() || '📍',
+      subcategories: [],
       createdAt: serverTimestamp(),
     })
     setNewLabel('')
     setNewEmoji('📍')
     setMsg(`Categoria "${newLabel.trim()}" creata ✅`)
+  }
+
+  function startEditCategory(c) {
+    setEditingCat(c.id)
+    setEditLabel(c.label)
+    setEditEmoji(c.emoji)
+    setEditSubs((c.subcategories || []).join(', '))
+  }
+
+  async function saveCategory(c) {
+    setMsg('')
+    const label = editLabel.trim()
+    if (!label) return setMsg('Il nome della categoria non può essere vuoto')
+    const subcategories = editSubs
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 10)
+    try {
+      await updateDoc(doc(db, 'categories', c.id), {
+        label,
+        emoji: editEmoji.trim() || '📍',
+        subcategories,
+      })
+      setEditingCat(null)
+      setMsg(`Categoria "${label}" aggiornata ✅`)
+    } catch (err) {
+      setMsg('❌ Aggiornamento fallito: ' + err.message)
+    }
   }
 
   async function handleExport() {
@@ -305,13 +340,47 @@ export default function MoreTab({
               Crea le categorie di base
             </button>
           )}
-          {categories.map((c) => (
-            <div key={c.id} className="card row-card">
-              <span>
-                {c.emoji} {c.label} <span className="small muted">({c.id})</span>
-              </span>
-            </div>
-          ))}
+          {categories.map((c) =>
+            editingCat === c.id ? (
+              <div key={c.id} className="card form">
+                <label>
+                  Nome
+                  <input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} maxLength={50} />
+                </label>
+                <label>
+                  Emoji
+                  <input value={editEmoji} onChange={(e) => setEditEmoji(e.target.value)} maxLength={4} />
+                </label>
+                <label>
+                  Sottocategorie (separate da virgola, vuoto = nessuna)
+                  <input
+                    value={editSubs}
+                    onChange={(e) => setEditSubs(e.target.value)}
+                    placeholder="Es. Fontanella, Macchinetta, Distributore"
+                    maxLength={300}
+                  />
+                </label>
+                <div className="card-actions">
+                  <button className="button" onClick={() => saveCategory(c)}>Salva</button>
+                  <button className="button secondary" onClick={() => setEditingCat(null)}>Annulla</button>
+                </div>
+              </div>
+            ) : (
+              <div key={c.id} className="card row-card">
+                <span>
+                  {c.emoji} {c.label} <span className="small muted">({c.id})</span>
+                  {c.subcategories?.length > 0 && (
+                    <span className="small muted">
+                      <br />↳ {c.subcategories.join(', ')}
+                    </span>
+                  )}
+                </span>
+                <button className="button secondary" onClick={() => startEditCategory(c)}>
+                  Modifica
+                </button>
+              </div>
+            )
+          )}
           <form onSubmit={addCategory} className="form card">
             <label>
               Nuova categoria
