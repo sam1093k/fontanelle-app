@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { logout, useAuth } from './hooks/useAuth'
 import { useCategories, useGeolocation, usePoints } from './hooks/useData'
 import { useTheme } from './hooks/useTheme'
+import { useLocationPref } from './hooks/useLocationPref'
 import AuthGate from './components/AuthGate'
 import MapView from './components/MapView'
 import PointList from './components/PointList'
@@ -96,7 +97,8 @@ function Shell({ user, profile, isAdmin, themeState }) {
   const [tab, setTab] = useState('map')
   const points = usePoints()
   const categories = useCategories()
-  const { location, status: geoStatus, request: requestLocation } = useGeolocation()
+  const locationPref = useLocationPref()
+  const { location, status: geoStatus, request: requestLocation } = useGeolocation(locationPref.enabled)
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState(null) // {type:'add', coords} | {type:'edit', point}
 
@@ -139,6 +141,8 @@ function Shell({ user, profile, isAdmin, themeState }) {
             categories={categories}
             theme={themeState.theme}
             onSetTheme={themeState.setTheme}
+            locationEnabled={locationPref.enabled}
+            onSetLocationEnabled={locationPref.setEnabled}
           />
         )}
       </main>

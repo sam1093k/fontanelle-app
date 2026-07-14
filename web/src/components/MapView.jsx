@@ -103,7 +103,16 @@ export default function MapView({
   // Marker della posizione utente + centratura al primo fix.
   useEffect(() => {
     const map = mapObj.current
-    if (!map || !location) return
+    if (!map) return
+    if (!location) {
+      // Posizione disattivata (o non ancora disponibile): togli subito il pallino.
+      if (meMarkerRef.current) {
+        meMarkerRef.current.remove()
+        meMarkerRef.current = null
+      }
+      centeredOnceRef.current = false
+      return
+    }
     if (!meMarkerRef.current) {
       const meIcon = L.divIcon({
         className: 'me-marker',
@@ -161,7 +170,7 @@ export default function MapView({
   function handleLocate() {
     if (location) {
       mapObj.current?.setView([location.lat, location.lng], 16)
-    } else if (geoStatus === 'denied') {
+    } else if (geoStatus === 'denied' || geoStatus === 'disabled') {
       setShowGeoHelp(true)
     } else {
       onRequestLocation()
@@ -185,7 +194,7 @@ export default function MapView({
               className="pick-btn"
               onClick={() => {
                 if (location) confirmPick(location)
-                else if (geoStatus === 'denied') setShowGeoHelp(true)
+                else if (geoStatus === 'denied' || geoStatus === 'disabled') setShowGeoHelp(true)
                 else onRequestLocation()
               }}
             >
@@ -216,12 +225,16 @@ export default function MapView({
         title={location ? 'Vai alla mia posizione' : 'Attiva la posizione'}
         onClick={handleLocate}
       >
-        {location ? '🎯' : geoStatus === 'prompting' ? '⏳' : '📡'}
+        {location ? '🎯' : geoStatus === 'prompting' ? '⏳' : geoStatus === 'disabled' ? '🔒' : '📡'}
       </button>
 
       {showGeoHelp && (
         <div className="geo-help">
-          <p>{GEO_DENIED_HELP}</p>
+          <p>
+            {geoStatus === 'disabled'
+              ? 'Hai disattivato la posizione per questa app.\n\nPuoi riattivarla in qualsiasi momento da Altro → Privacy → Posizione.'
+              : GEO_DENIED_HELP}
+          </p>
           <button className="button" onClick={() => setShowGeoHelp(false)}>
             Ho capito
           </button>

@@ -49,15 +49,28 @@ export function useUsers(enabled) {
   return useLiveQuery(() => collection(db, 'users'), [], enabled)
 }
 
-// status: 'idle' (mai chiesta) | 'prompting' | 'granted' | 'denied' | 'unavailable'
+// status: 'idle' (mai chiesta) | 'prompting' | 'granted' | 'denied' | 'unavailable' | 'disabled'
 // request() va chiamata da un gesto utente (tasto): su iOS il prompt
 // del permesso non appare in modo affidabile senza interazione.
-export function useGeolocation() {
+//
+// `enabled` è l'interruttore locale in Altro > Privacy (useLocationPref):
+// separato dal permesso del browser, revocabile in ogni momento. Quando
+// false, la geolocalizzazione non viene mai interrogata, anche se il
+// browser ha già concesso il permesso.
+export function useGeolocation(enabled) {
   const [location, setLocation] = useState(null)
   const [status, setStatus] = useState('idle')
   const watchRef = useRef(null)
 
+  const clearWatch = useCallback(() => {
+    if (watchRef.current != null) {
+      navigator.geolocation.clearWatch(watchRef.current)
+      watchRef.current = null
+    }
+  }, [])
+
   const request = useCallback(() => {
+    if (!enabled) return
     if (!navigator.geolocation) {
       setStatus('unavailable')
       return
@@ -72,17 +85,20 @@ export function useGeolocation() {
       (err) => {
         if (err.code === 1) {
           setStatus('denied')
-          if (watchRef.current != null) {
-            navigator.geolocation.clearWatch(watchRef.current)
-            watchRef.current = null
-          }
+          clearWatch()
         }
       },
       { enableHighAccuracy: true, maximumAge: 15000 }
     )
-  }, [])
+  }, [enabled, clearWatch])
 
   useEffect(() => {
+    if (!enabled) {
+      clearWatch()
+      setLocation(null)
+      setStatus('disabled')
+      return
+    }
     let cancelled = false
     // Auto-avvio solo se il permesso risulta già concesso; altrimenti
     // aspettiamo che l'utente tocchi il tasto posizione.
@@ -93,6 +109,7 @@ export function useGeolocation() {
           if (cancelled) return
           if (r.state === 'granted') request()
           else if (r.state === 'denied') setStatus('denied')
+          else setStatus('idle')
         })
         .catch(() => request())
     } else {
@@ -100,9 +117,10 @@ export function useGeolocation() {
     }
     return () => {
       cancelled = true
-      if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current)
     }
-  }, [request])
+  }, [enabled, request, clearWatch])
+
+  useEffect(() => clearWatch, [clearWatch])
 
   return { location, status, request }
 }

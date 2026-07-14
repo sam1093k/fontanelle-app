@@ -156,6 +156,8 @@ export default function SuggestionForm({ mode, categories, user, location, geoSt
                 setLng(location.lng)
               } else if (geoStatus === 'denied') {
                 setError(GEO_DENIED_HELP)
+              } else if (geoStatus === 'disabled') {
+                setError('Hai disattivato la posizione per questa app. Riattivala da Altro → Privacy → Posizione, oppure inserisci le coordinate a mano.')
               } else {
                 onRequestLocation()
                 setError('Attivazione posizione in corso: consenti l’accesso e ripremi il tasto.')

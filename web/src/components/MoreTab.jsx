@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { doc, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
-import { logout } from '../hooks/useAuth'
+import { deleteAccount, logout } from '../hooks/useAuth'
 import { useUsers } from '../hooks/useData'
 import { SEED_CATEGORIES } from '../constants'
+import { exportUserData } from '../lib/privacyData'
+import PrivacyPolicy from './PrivacyPolicy'
 
 function slugify(s) {
   return s
@@ -20,13 +22,27 @@ const THEME_OPTIONS = [
   { id: 'dark', label: 'Scuro', icon: '🌙' },
 ]
 
-export default function MoreTab({ user, profile, isAdmin, categories, theme, onSetTheme }) {
+export default function MoreTab({
+  user,
+  profile,
+  isAdmin,
+  categories,
+  theme,
+  onSetTheme,
+  locationEnabled,
+  onSetLocationEnabled,
+}) {
   const users = useUsers(isAdmin)
   const [newLabel, setNewLabel] = useState('')
   const [newEmoji, setNewEmoji] = useState('📍')
   const [msg, setMsg] = useState('')
   const [confirmingUser, setConfirmingUser] = useState(null)
   const [requestSearch, setRequestSearch] = useState('')
+  const [showPrivacy, setShowPrivacy] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [deleteStep, setDeleteStep] = useState('idle') // idle | confirm | password | busy
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteError, setDeleteError] = useState('')
 
   // In attesa = mai approvati, non rifiutati, non admin.
   const pendingUsers = users.filter((u) => u.approved !== true && u.rejected !== true && u.isAdmin !== true)
@@ -90,6 +106,38 @@ export default function MoreTab({ user, profile, isAdmin, categories, theme, onS
     setMsg(`Categoria "${newLabel.trim()}" creata ✅`)
   }
 
+  async function handleExport() {
+    setExporting(true)
+    try {
+      await exportUserData(user)
+    } catch (err) {
+      setMsg('❌ Esportazione fallita: ' + err.message)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function handleDelete(password) {
+    setDeleteError('')
+    setDeleteStep('busy')
+    try {
+      await deleteAccount(password)
+      // Da qui l'utente risulta disconnesso: App torna alla schermata di login da sola.
+    } catch (err) {
+      if (err.code === 'auth/requires-recent-login') {
+        setDeleteStep('password')
+        return
+      }
+      const messages = {
+        'auth/wrong-password': 'Password errata',
+        'auth/invalid-credential': 'Password errata',
+        'auth/too-many-requests': 'Troppi tentativi: riprova più tardi',
+      }
+      setDeleteError(messages[err.code] || err.message)
+      setDeleteStep(password ? 'password' : 'confirm')
+    }
+  }
+
   return (
     <div className="list-page">
       <h3>Profilo</h3>
@@ -114,6 +162,90 @@ export default function MoreTab({ user, profile, isAdmin, categories, theme, onS
           </button>
         ))}
       </div>
+
+      <h3>Privacy</h3>
+      <div className="card">
+        <div className="switch-row">
+          <div className="switch-text">
+            <strong>Posizione</strong>
+            <p className="small muted">
+              Usata per centrare la mappa e ordinare i punti per distanza. Disattivabile in ogni momento.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={`switch ${locationEnabled ? 'on' : ''}`}
+            role="switch"
+            aria-checked={locationEnabled}
+            onClick={() => onSetLocationEnabled(!locationEnabled)}
+          />
+        </div>
+      </div>
+
+      <button className="button secondary" onClick={() => setShowPrivacy(true)}>
+        📄 Informativa privacy
+      </button>
+      <button className="button secondary" onClick={handleExport} disabled={exporting}>
+        {exporting ? 'Esportazione…' : '⬇️ Esporta i miei dati'}
+      </button>
+
+      {deleteStep === 'idle' && (
+        <button className="button danger" onClick={() => setDeleteStep('confirm')}>
+          🗑 Elimina il mio account
+        </button>
+      )}
+      {deleteStep === 'confirm' && (
+        <div className="inline-confirm">
+          <p className="small">
+            <strong>Eliminare definitivamente il tuo account?</strong> Profilo e proposte ancora in attesa
+            verranno cancellati. Le proposte già valutate restano come cronologia per gli admin; le foto già
+            caricate restano nell'archivio Telegram (per rimuoverle contatta un admin).
+          </p>
+          {deleteError && <p className="error">{deleteError}</p>}
+          <div className="card-actions">
+            <button className="button danger" onClick={() => handleDelete()}>Sì, elimina</button>
+            <button
+              className="button secondary"
+              onClick={() => {
+                setDeleteStep('idle')
+                setDeleteError('')
+              }}
+            >
+              Annulla
+            </button>
+          </div>
+        </div>
+      )}
+      {deleteStep === 'password' && (
+        <div className="inline-confirm">
+          <p className="small">Per sicurezza conferma la password per completare la cancellazione.</p>
+          <input
+            type="password"
+            placeholder="Password"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+          />
+          {deleteError && <p className="error">{deleteError}</p>}
+          <div className="card-actions">
+            <button className="button danger" onClick={() => handleDelete(deletePassword)}>
+              Conferma ed elimina
+            </button>
+            <button
+              className="button secondary"
+              onClick={() => {
+                setDeleteStep('idle')
+                setDeleteError('')
+                setDeletePassword('')
+              }}
+            >
+              Annulla
+            </button>
+          </div>
+        </div>
+      )}
+      {deleteStep === 'busy' && <p className="small muted">Eliminazione in corso…</p>}
+
+      {showPrivacy && <PrivacyPolicy onClose={() => setShowPrivacy(false)} />}
 
       {isAdmin && (
         <>

@@ -102,7 +102,9 @@ service cloud.firestore {
             && request.resource.data.displayName.size() <= 50)
         || (isAdmin()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isAdmin', 'approved', 'rejected']));
-      allow delete: if false;
+      // Diritto alla cancellazione (GDPR art. 17): solo l'interessato puo' cancellare
+      // il proprio profilo. Gli admin non possono cancellare profili altrui.
+      allow delete: if isSelf(uid);
     }
   }
 }

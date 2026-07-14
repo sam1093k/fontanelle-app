@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { login, signup } from '../hooks/useAuth'
+import PrivacyPolicy from './PrivacyPolicy'
 
 export default function AuthGate() {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [consent, setConsent] = useState(false)
+  const [showPrivacy, setShowPrivacy] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -16,6 +19,7 @@ export default function AuthGate() {
     try {
       if (mode === 'signup') {
         if (displayName.trim().length < 1) throw new Error('Inserisci un nome')
+        if (!consent) throw new Error('Devi accettare l’informativa privacy per registrarti')
         await signup(email, password, displayName.trim())
       } else {
         await login(email, password)
@@ -62,6 +66,21 @@ export default function AuthGate() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+          {mode === 'signup' && (
+            <label className="consent-row small">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+              />
+              <span>
+                Ho letto e accetto l'{' '}
+                <button type="button" className="link inline" onClick={() => setShowPrivacy(true)}>
+                  informativa privacy
+                </button>
+              </span>
+            </label>
+          )}
           {error && <p className="error">{error}</p>}
           <button type="submit" disabled={busy}>
             {mode === 'login' ? 'Accedi' : 'Registrati'}
@@ -71,6 +90,7 @@ export default function AuthGate() {
           {mode === 'login' ? 'Non hai un account? Registrati' : 'Hai già un account? Accedi'}
         </button>
       </div>
+      {showPrivacy && <PrivacyPolicy onClose={() => setShowPrivacy(false)} />}
     </div>
   )
 }
