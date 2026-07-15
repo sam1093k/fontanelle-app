@@ -168,6 +168,7 @@ function Shell({ user, profile, isAdmin, themeState }) {
           location={location}
           isAdmin={isAdmin}
           user={user}
+          profile={profile}
           onClose={() => setSelected(null)}
           onProposeEdit={(point) => {
             setSelected(null)

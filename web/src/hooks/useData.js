@@ -55,6 +55,16 @@ export function useReviewedSuggestions(enabled) {
   )
 }
 
+// Note interne su un punto, visibili solo agli admin (rules lo impongono
+// anche lato server, non solo qui).
+export function usePointComments(pointId, enabled) {
+  return useLiveQuery(
+    () => query(collection(db, 'points', pointId, 'adminComments'), orderBy('createdAt', 'asc')),
+    [pointId],
+    enabled && !!pointId
+  )
+}
+
 export function useUsers(enabled) {
   return useLiveQuery(() => collection(db, 'users'), [], enabled)
 }

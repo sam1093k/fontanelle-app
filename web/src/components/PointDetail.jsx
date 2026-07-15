@@ -3,19 +3,23 @@ import { addDoc, collection, deleteDoc, doc, serverTimestamp, updateDoc } from '
 import { db } from '../firebase'
 import { STATUSES } from '../constants'
 import { distanceMeters, formatDistance } from '../lib/geo'
+import { usePointComments } from '../hooks/useData'
 import PhotoImg from './PhotoImg'
 
 // Niente confirm()/prompt()/alert() nativi: nelle PWA installate su iOS
 // spesso non vengono mostrati (il tasto sembra "cliccare a vuoto").
 // Tutte le conferme e gli errori sono elementi dell'interfaccia.
-export default function PointDetail({ point, categories, location, isAdmin, user, onClose, onProposeEdit }) {
+export default function PointDetail({ point, categories, location, isAdmin, user, profile, onClose, onProposeEdit }) {
   const cat = categories.find((c) => c.id === point.category)
   const dist = location ? distanceMeters(location, point) : null
+  const comments = usePointComments(point.id, isAdmin)
 
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [removalOpen, setRemovalOpen] = useState(false)
   const [removalNote, setRemovalNote] = useState('')
   const [removalSent, setRemovalSent] = useState(false)
+  const [commentText, setCommentText] = useState('')
+  const [commentBusy, setCommentBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -43,6 +47,35 @@ export default function PointDetail({ point, categories, location, isAdmin, user
       setConfirmingDelete(false)
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function addComment() {
+    const text = commentText.trim()
+    if (!text) return
+    setError('')
+    setCommentBusy(true)
+    try {
+      await addDoc(collection(db, 'points', point.id, 'adminComments'), {
+        text,
+        authorUid: user.uid,
+        authorName: profile?.displayName || user.email,
+        createdAt: serverTimestamp(),
+      })
+      setCommentText('')
+    } catch (err) {
+      setError('Invio nota fallito: ' + err.message)
+    } finally {
+      setCommentBusy(false)
+    }
+  }
+
+  async function deleteComment(commentId) {
+    setError('')
+    try {
+      await deleteDoc(doc(db, 'points', point.id, 'adminComments', commentId))
+    } catch (err) {
+      setError('Eliminazione nota fallita: ' + err.message)
     }
   }
 
@@ -180,6 +213,45 @@ export default function PointDetail({ point, categories, location, isAdmin, user
                 </div>
               </div>
             )}
+
+            <p className="small muted" style={{ marginTop: 16 }}>
+              🔒 Note interne (visibili solo agli admin):
+            </p>
+            {comments.length === 0 && <p className="small muted">Nessuna nota.</p>}
+            {comments.map((c) => (
+              <div key={c.id} className="comment-row">
+                <div className="comment-body">
+                  <p className="small">{c.text}</p>
+                  <p className="small muted">
+                    {c.authorName} · {c.createdAt?.toDate?.().toLocaleString('it-IT') ?? '…'}
+                  </p>
+                </div>
+                <button
+                  className="comment-delete"
+                  title="Elimina nota"
+                  onClick={() => deleteComment(c.id)}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            <div className="inline-confirm">
+              <textarea
+                placeholder="Scrivi una nota visibile solo agli admin…"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                maxLength={1000}
+                rows={2}
+              />
+              <button
+                className="button secondary small-btn"
+                disabled={commentBusy || !commentText.trim()}
+                onClick={addComment}
+                style={{ marginTop: 8 }}
+              >
+                {commentBusy ? 'Invio…' : 'Aggiungi nota'}
+              </button>
+            </div>
           </div>
         )}
       </div>

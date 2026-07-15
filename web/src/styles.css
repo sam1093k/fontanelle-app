@@ -767,6 +767,31 @@ button { font-family: inherit; }
   color: #fff;
 }
 
+/* ---- Note interne admin ---- */
+.comment-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.comment-row:last-of-type { border-bottom: none; }
+.comment-body { flex: 1; min-width: 0; }
+.comment-body p:first-child { white-space: pre-wrap; word-break: break-word; }
+.comment-delete {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.comment-delete:active { transform: scale(0.88); }
+
 /* ---- Pick mode (scelta posizione sulla mappa) ---- */
 .pick-banner {
   position: absolute;

@@ -50,6 +50,20 @@ service cloud.firestore {
     match /points/{pointId} {
       allow read: if isApproved() || isAdmin();
       allow create, update, delete: if isAdmin();
+
+      // Note interne, mai visibili a chi non e' admin: sottocollezione
+      // separata (non un campo su points) cosi' le rules bloccano la
+      // lettura a livello di database, non solo nell'interfaccia.
+      match /adminComments/{commentId} {
+        allow read, delete: if isAdmin();
+        allow create: if isAdmin()
+          && request.resource.data.keys().hasOnly(['text', 'authorUid', 'authorName', 'createdAt'])
+          && request.resource.data.text is string
+          && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 1000
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+      }
     }
 
     match /categories/{categoryId} {
