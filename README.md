@@ -70,12 +70,16 @@ commenti admin...) da bot e script automatici, senza aggiungere frizione per gli
 *prima* che tutti abbiano l'app aggiornata blocca l'accesso a chiunque abbia ancora la
 versione vecchia.
 
-### 5. Primo admin (bootstrap)
+### 5. Primo admin e owner (bootstrap)
 
 1. Avvia l'app (`cd web && npm install && npm run dev`), registrati.
 2. Console Firebase → Firestore → collezione `users` → il tuo documento →
-   aggiungi campo `isAdmin` (boolean) = `true`.
-3. Da questo momento promuovi/degradi altri admin dall'app (tab Altro).
+   aggiungi **due** campi booleani: `isAdmin` = `true` e `isOwner` = `true`.
+   `isOwner` non è mai impostabile dall'app (nemmeno da un admin): solo così,
+   una volta fatto, resta al sicuro da chiunque altro.
+3. Da questo momento, solo l'owner promuove/degrada gli admin dall'app (tab Altro) —
+   gli admin normali possono ancora accettare/rifiutare le richieste di accesso,
+   ma non toccare lo stato admin di nessuno.
 4. Tab Altro → **Crea le categorie di base**.
 
 ## Comandi

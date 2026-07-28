@@ -57,13 +57,13 @@ const TABS = [
 ]
 
 export default function App() {
-  const { user, profile, loading, isAdmin, approved } = useAuth()
+  const { user, profile, loading, isAdmin, isOwner, approved } = useAuth()
   const themeState = useTheme() // applica data-theme sull'<html> anche prima del login
 
   if (loading) return <div className="center-page">Caricamento…</div>
   if (!user) return <AuthGate />
   if (!approved) return <PendingScreen profile={profile} />
-  return <Shell user={user} profile={profile} isAdmin={isAdmin} themeState={themeState} />
+  return <Shell user={user} profile={profile} isAdmin={isAdmin} isOwner={isOwner} themeState={themeState} />
 }
 
 // Whitelist: account registrato ma non ancora approvato da un admin.
@@ -93,7 +93,7 @@ function PendingScreen({ profile }) {
   )
 }
 
-function Shell({ user, profile, isAdmin, themeState }) {
+function Shell({ user, profile, isAdmin, isOwner, themeState }) {
   const [tab, setTab] = useState('map')
   const points = usePoints()
   const categories = useCategories()
@@ -139,6 +139,7 @@ function Shell({ user, profile, isAdmin, themeState }) {
             user={user}
             profile={profile}
             isAdmin={isAdmin}
+            isOwner={isOwner}
             categories={categories}
             theme={themeState.theme}
             onSetTheme={themeState.setTheme}

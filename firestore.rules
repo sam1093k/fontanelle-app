@@ -11,12 +11,20 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
-    // Admin = flag isAdmin sul proprio documento utente.
-    // Il flag è modificabile SOLO da un altro admin (vedi rules di /users):
-    // mai impostabile alla creazione, mai auto-assegnabile.
+    // Admin = flag isAdmin sul proprio documento utente. Modificabile
+    // SOLO dall'owner (vedi rules di /users): mai impostabile alla
+    // creazione, mai auto-assegnabile, e nemmeno un admin puo' toccarlo.
     function isAdmin() {
       return signedIn()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Owner = flag isOwner, impostabile SOLO manualmente dalla console
+    // Firebase (non compare in nessuna allow update dell'app, quindi e'
+    // immutabile via app). E' l'unico che puo' promuovere/rimuovere admin.
+    function isOwner() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isOwner', false) == true;
     }
 
     // Whitelist: l'accesso ai dati richiede un account approvato da un admin.
@@ -109,14 +117,19 @@ service cloud.firestore {
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() >= 1
         && request.resource.data.displayName.size() <= 50;
-      // Se stessi: solo displayName. Admin: solo il flag isAdmin altrui.
+      // Se stessi: solo displayName. Admin: solo whitelist (approved/rejected),
+      // mai isAdmin. Owner: solo il flag isAdmin altrui (mai il proprio, mai
+      // quello di un altro owner) - la whitelist resta agli admin normali.
       allow update: if (isSelf(uid)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
             && request.resource.data.displayName is string
             && request.resource.data.displayName.size() >= 1
             && request.resource.data.displayName.size() <= 50)
         || (isAdmin()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isAdmin', 'approved', 'rejected']));
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved', 'rejected']))
+        || (isOwner() && !isSelf(uid)
+            && resource.data.get('isOwner', false) != true
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isAdmin']));
       // Diritto alla cancellazione (GDPR art. 17): solo l'interessato puo' cancellare
       // il proprio profilo. Gli admin non possono cancellare profili altrui.
       allow delete: if isSelf(uid);

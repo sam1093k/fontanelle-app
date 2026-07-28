@@ -26,6 +26,7 @@ export default function MoreTab({
   user,
   profile,
   isAdmin,
+  isOwner,
   categories,
   theme,
   onSetTheme,
@@ -73,6 +74,7 @@ export default function MoreTab({
     }
   }
 
+  // Solo l'owner puo' promuovere/rimuovere admin (impostato dalle rules).
   async function toggleAdmin(u) {
     setMsg('')
     try {
@@ -178,7 +180,9 @@ export default function MoreTab({
       <h3>Profilo</h3>
       <div className="card">
         <p>
-          <strong>{profile?.displayName}</strong> {isAdmin && <span className="chip">admin</span>}
+          <strong>{profile?.displayName}</strong>{' '}
+          {isOwner && <span className="chip owner">👑 owner</span>}
+          {isAdmin && <span className="chip">admin</span>}
         </p>
         <p className="small muted">{user.email}</p>
         <button className="button secondary" onClick={logout}>Esci</button>
@@ -314,22 +318,23 @@ export default function MoreTab({
           {activeUsers.map((u) => (
             <div key={u.id} className="card row-card">
               <div>
-                <strong>{u.displayName}</strong>
+                <strong>{u.displayName}</strong>{' '}
+                {u.isOwner && <span className="chip owner">👑 owner</span>}
                 {u.isAdmin && <span className="chip">admin</span>}
               </div>
-              {u.id !== user.uid ? (
-                confirmingUser === u.id ? (
-                  <span className="card-actions">
-                    <button className="button danger" onClick={() => toggleAdmin(u)}>Confermo</button>
-                    <button className="button secondary" onClick={() => setConfirmingUser(null)}>Annulla</button>
-                  </span>
-                ) : (
-                  <button className="button secondary" onClick={() => setConfirmingUser(u.id)}>
-                    {u.isAdmin ? 'Rimuovi admin' : 'Rendi admin'}
-                  </button>
-                )
-              ) : (
+              {u.id === user.uid ? (
                 <span className="small muted">(tu)</span>
+              ) : u.isOwner ? (
+                <span className="small muted">gestione riservata</span>
+              ) : !isOwner ? null : confirmingUser === u.id ? (
+                <span className="card-actions">
+                  <button className="button danger" onClick={() => toggleAdmin(u)}>Confermo</button>
+                  <button className="button secondary" onClick={() => setConfirmingUser(null)}>Annulla</button>
+                </span>
+              ) : (
+                <button className="button secondary" onClick={() => setConfirmingUser(u.id)}>
+                  {u.isAdmin ? 'Rimuovi admin' : 'Rendi admin'}
+                </button>
               )}
             </div>
           ))}

@@ -31,6 +31,7 @@ export function useAuth() {
     profile: profile ?? null,
     loading: user === undefined || (!!user && profile === undefined),
     isAdmin: profile?.isAdmin === true,
+    isOwner: profile?.isOwner === true,
     approved: profile?.approved === true || profile?.isAdmin === true,
   }
 }

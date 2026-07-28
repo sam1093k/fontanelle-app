@@ -215,7 +215,7 @@ export default function PointDetail({ point, categories, location, isAdmin, user
             )}
 
             <p className="small muted" style={{ marginTop: 16 }}>
-              🔒 Note interne (visibili solo agli admin):
+              Note interne:
             </p>
             {comments.length === 0 && <p className="small muted">Nessuna nota.</p>}
             {comments.map((c) => (
