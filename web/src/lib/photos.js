@@ -1,4 +1,4 @@
-import { auth } from '../firebase'
+import { auth, getAppCheckToken } from '../firebase'
 
 const WORKER_URL = (import.meta.env.VITE_WORKER_URL || '').replace(/\/$/, '')
 
@@ -6,8 +6,10 @@ const WORKER_URL = (import.meta.env.VITE_WORKER_URL || '').replace(/\/$/, '')
 const urlCache = new Map()
 
 async function authHeader() {
-  const token = await auth.currentUser.getIdToken()
-  return { Authorization: `Bearer ${token}` }
+  const [idToken, appCheckToken] = await Promise.all([auth.currentUser.getIdToken(), getAppCheckToken()])
+  const headers = { Authorization: `Bearer ${idToken}` }
+  if (appCheckToken) headers['X-Firebase-AppCheck'] = appCheckToken
+  return headers
 }
 
 // Ridimensiona e comprime lato client prima dell'upload:

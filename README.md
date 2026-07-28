@@ -48,7 +48,29 @@ App privata (PWA) per mappare punti di interesse con stato, categorie, foto e fl
    ```
 4. Copia l'URL del worker in `web/.env.local` → `VITE_WORKER_URL`.
 
-### 4. Primo admin (bootstrap)
+### 4. Anti-bot (App Check + reCAPTCHA v3)
+
+Facoltativo ma consigliato: protegge login, registrazione e ogni scrittura (proposte, foto,
+commenti admin...) da bot e script automatici, senza aggiungere frizione per gli utenti veri
+(reCAPTCHA v3 è invisibile). Gratuito, nessuna Cloud Function.
+
+1. [Console reCAPTCHA](https://www.google.com/recaptcha/admin) → crea un sito, tipo **v3**,
+   domini: quello di Firebase Hosting **+ `localhost`** (serve per `npm run dev`).
+2. Console Firebase → **App Check** → registra l'app Web → provider **reCAPTCHA v3** → incolla
+   la site key.
+3. `web/.env.local` → `VITE_RECAPTCHA_SITE_KEY` = la site key. Deploya l'app
+   (`cd web && npm run deploy`) e aggiorna tutti i dispositivi (banner "Aggiorna").
+4. Solo dopo aver verificato che l'app funzioni ancora: Firebase Console → App Check → schede
+   **Authentication** e **Cloud Firestore** → **Enforce**.
+5. Per estendere la protezione anche al Worker foto: `worker/wrangler.toml` →
+   `REQUIRE_APP_CHECK = "true"` (dopo il punto 3, mai prima: altrimenti i client non ancora
+   aggiornati restano bloccati), poi `npx wrangler deploy`.
+
+**Attenzione all'ordine**: attivare l'enforcement (punto 4) o `REQUIRE_APP_CHECK` (punto 5)
+*prima* che tutti abbiano l'app aggiornata blocca l'accesso a chiunque abbia ancora la
+versione vecchia.
+
+### 5. Primo admin (bootstrap)
 
 1. Avvia l'app (`cd web && npm install && npm run dev`), registrati.
 2. Console Firebase → Firestore → collezione `users` → il tuo documento →

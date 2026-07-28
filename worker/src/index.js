@@ -5,6 +5,9 @@ const JWKS = createRemoteJWKSet(
   new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com')
 )
 
+// Chiavi pubbliche per verificare i token App Check (anti-bot, reCAPTCHA v3).
+const APP_CHECK_JWKS = createRemoteJWKSet(new URL('https://firebaseappcheck.googleapis.com/v1/jwks'))
+
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 
 async function verifyAuth(request, env) {
@@ -18,6 +21,26 @@ async function verifyAuth(request, env) {
     return payload
   } catch {
     return null
+  }
+}
+
+// Anti-bot: verifica il token App Check inviato dal client (header
+// X-Firebase-AppCheck). REQUIRE_APP_CHECK="false" (default) accetta anche
+// le richieste senza header, per non rompere i client non ancora
+// aggiornati durante il rollout; un token presente ma non valido è
+// sempre rifiutato, indipendentemente da REQUIRE_APP_CHECK. Passare a
+// "true" solo dopo che tutti i client hanno aggiornato l'app.
+async function verifyAppCheck(request, env) {
+  const token = request.headers.get('X-Firebase-AppCheck')
+  if (!token) return env.REQUIRE_APP_CHECK !== 'true'
+  try {
+    await jwtVerify(token, APP_CHECK_JWKS, {
+      issuer: `https://firebaseappcheck.googleapis.com/${env.FIREBASE_PROJECT_NUMBER}`,
+      audience: `projects/${env.FIREBASE_PROJECT_NUMBER}`,
+    })
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -58,6 +81,8 @@ export default {
     const headers = corsHeaders(request, env)
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers })
+
+    if (!(await verifyAppCheck(request, env))) return json({ error: 'app_check_failed' }, 401, headers)
 
     const user = await verifyAuth(request, env)
     if (!user) return json({ error: 'unauthorized' }, 401, headers)

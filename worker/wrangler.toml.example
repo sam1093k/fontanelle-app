@@ -8,3 +8,10 @@ compatibility_date = "2026-01-01"
 [vars]
 FIREBASE_PROJECT_ID = "your-firebase-project-id"
 ALLOWED_ORIGINS = "http://localhost:5173,https://your-firebase-project-id.web.app"
+
+# Anti-bot (App Check): il numero progetto si trova con `firebase projects:list`
+# (colonna Project Number, diverso dal project ID). Lascia REQUIRE_APP_CHECK
+# su "false" finche' non hai verificato che l'app aggiornata funzioni ancora
+# con App Check attivo: solo allora passa a "true" e fai un nuovo deploy.
+FIREBASE_PROJECT_NUMBER = "your-firebase-project-number"
+REQUIRE_APP_CHECK = "false"

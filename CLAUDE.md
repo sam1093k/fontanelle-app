@@ -41,6 +41,8 @@ There are no tests or linters configured yet. Local config lives in `web/.env.lo
 
 **Update notice requirement**: `vite-plugin-pwa` is configured with `registerType: 'prompt'` — users get an explicit "Aggiorna" banner (`UpdateBanner.jsx`) instead of silent refresh. Keep it that way; it's an owner requirement.
 
+**Anti-bot**: Firebase App Check (`web/src/firebase.js`, `ReCaptchaV3Provider`) is optional and off by default — it only activates when `VITE_RECAPTCHA_SITE_KEY` is set, so the app never breaks for lack of it. Enforcement (Firebase Console, and `REQUIRE_APP_CHECK` in `worker/wrangler.toml` for the photo Worker, verified there against the App Check JWKS the same way the ID token is) must only be turned on **after** every client has updated to a build that sends the token — flipping it early locks out anyone on an older cached version. Never enable enforcement without the owner's explicit go-ahead.
+
 ## Conventions
 
 - UI copy is Italian; code identifiers/comments English or Italian as fits.
