@@ -11,20 +11,22 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
-    // Admin = flag isAdmin sul proprio documento utente. Modificabile
-    // SOLO dall'owner (vedi rules di /users): mai impostabile alla
-    // creazione, mai auto-assegnabile, e nemmeno un admin puo' toccarlo.
-    function isAdmin() {
-      return signedIn()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-
     // Owner = flag isOwner, impostabile SOLO manualmente dalla console
     // Firebase (non compare in nessuna allow update dell'app, quindi e'
     // immutabile via app). E' l'unico che puo' promuovere/rimuovere admin.
     function isOwner() {
       return signedIn()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isOwner', false) == true;
+    }
+
+    // Admin = flag isAdmin sul proprio documento utente. Modificabile
+    // SOLO dall'owner (vedi rules di /users): mai impostabile alla
+    // creazione, mai auto-assegnabile, e nemmeno un admin puo' toccarlo.
+    // L'owner e' sempre anche admin, senza bisogno del flag isAdmin.
+    function isAdmin() {
+      return signedIn()
+        && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true
+            || isOwner());
     }
 
     // Whitelist: l'accesso ai dati richiede un account approvato da un admin.

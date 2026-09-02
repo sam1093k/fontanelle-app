@@ -5,6 +5,7 @@ import {
   deleteUser,
   onAuthStateChanged,
   reauthenticateWithCredential,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth'
@@ -26,13 +27,16 @@ export function useAuth() {
     return onSnapshot(doc(db, 'users', user.uid), (snap) => setProfile(snap.data() ?? null))
   }, [user?.uid])
 
+  // L'owner ha sempre tutti i poteri da admin, anche senza il flag isAdmin
+  // sul proprio documento (stessa logica replicata in firestore.rules).
+  const owner = profile?.isOwner === true
   return {
     user: user ?? null,
     profile: profile ?? null,
     loading: user === undefined || (!!user && profile === undefined),
-    isAdmin: profile?.isAdmin === true,
-    isOwner: profile?.isOwner === true,
-    approved: profile?.approved === true || profile?.isAdmin === true,
+    isAdmin: profile?.isAdmin === true || owner,
+    isOwner: owner,
+    approved: profile?.approved === true || profile?.isAdmin === true || owner,
   }
 }
 
@@ -46,6 +50,10 @@ export async function signup(email, password, displayName) {
 
 export const login = (email, password) => signInWithEmailAndPassword(auth, email, password)
 export const logout = () => signOut(auth)
+
+// Recupero password: Firebase invia l'email col link di reset (gratis su
+// Spark). Il template si personalizza in Console Firebase > Authentication.
+export const resetPassword = (email) => sendPasswordResetEmail(auth, email)
 
 // Diritto alla cancellazione (GDPR art. 17). Ordine voluto: prima i dati
 // Firestore (mentre la sessione è ancora valida per le rules), poi l'account

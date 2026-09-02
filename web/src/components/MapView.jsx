@@ -4,10 +4,11 @@ import 'leaflet/dist/leaflet.css'
 import { STATUSES } from '../constants'
 import { GEO_DENIED_HELP } from '../hooks/useData'
 
-const TILE_URL = {
-  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-}
+// Tile OpenStreetMap standard: gratuite e senza API key. Le tile CARTO usate
+// prima ora richiedono un token e restituiscono un watermark "API KEY REQUIRED".
+// Il tema scuro si ottiene con un filtro CSS sul solo pane delle tile
+// (.map-dark in styles.css): nessun servizio scuro gratuito è keyless.
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
 export default function MapView({
   points,
@@ -39,12 +40,10 @@ export default function MapView({
   useEffect(() => {
     const map = L.map(elRef.current, { zoomControl: false }).setView([42.5, 12.5], 6)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
-    // Tile Carto (gratuite, retina, con variante scura secondo il tema scelto in Altro).
-    const tiles = L.tileLayer(TILE_URL[theme] || TILE_URL.light, {
-      attribution:
-        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 20,
+    // Tile OpenStreetMap (gratuite, senza API key); il tema scuro è un filtro CSS.
+    const tiles = L.tileLayer(TILE_URL, {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
     }).addTo(map)
     tilesRef.current = tiles
     map.on('click', (e) => {
@@ -59,9 +58,10 @@ export default function MapView({
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cambia i tile quando l'utente cambia tema da Altro > Aspetto.
+  // Cambia l'aspetto della mappa quando l'utente cambia tema da Altro > Aspetto:
+  // le tile OSM sono chiare, il tema scuro le inverte via filtro CSS.
   useEffect(() => {
-    tilesRef.current?.setUrl(TILE_URL[theme] || TILE_URL.light)
+    mapObj.current?.getContainer().classList.toggle('map-dark', theme === 'dark')
   }, [theme])
 
   // Sincronizza i marker con i punti (realtime).

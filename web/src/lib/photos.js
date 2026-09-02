@@ -12,19 +12,56 @@ async function authHeader() {
   return headers
 }
 
+// Decodifica il file in qualcosa di disegnabile su canvas. `createImageBitmap`
+// è la via veloce, ma l'opzione `imageOrientation` lancia un'eccezione su
+// Safari iOS non recenti: senza il fallback <img> l'aggiunta di foto si rompe
+// nella PWA su iPhone.
+async function decodeImage(file) {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
+      return { source: bmp, width: bmp.width, height: bmp.height, done: () => bmp.close() }
+    } catch {
+      /* passa al fallback <img> */
+    }
+  }
+  const url = URL.createObjectURL(file)
+  try {
+    const img = new Image()
+    img.src = url
+    await img.decode()
+    return {
+      source: img,
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      done: () => URL.revokeObjectURL(url),
+    }
+  } catch {
+    URL.revokeObjectURL(url)
+    throw new Error('Formato immagine non supportato (prova un JPEG o PNG)')
+  }
+}
+
 // Ridimensiona e comprime lato client prima dell'upload:
 // meno banda, e restiamo sotto il limite del Worker.
 export async function compressImage(file, maxDim = 1600, quality = 0.8) {
-  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
-  const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height))
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.round(bmp.width * scale)
-  canvas.height = Math.round(bmp.height * scale)
-  canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height)
-  bmp.close()
-  return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Compressione fallita'))), 'image/jpeg', quality)
-  )
+  const { source, width, height, done } = await decodeImage(file)
+  try {
+    const scale = Math.min(1, maxDim / Math.max(width, height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(width * scale)
+    canvas.height = Math.round(height * scale)
+    canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height)
+    return await new Promise((resolve, reject) =>
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error('Compressione fallita'))),
+        'image/jpeg',
+        quality
+      )
+    )
+  } finally {
+    done()
+  }
 }
 
 export async function uploadPhoto(file) {

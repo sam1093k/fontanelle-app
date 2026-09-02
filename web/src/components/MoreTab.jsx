@@ -49,12 +49,14 @@ export default function MoreTab({
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteError, setDeleteError] = useState('')
 
-  // In attesa = mai approvati, non rifiutati, non admin.
-  const pendingUsers = users.filter((u) => u.approved !== true && u.rejected !== true && u.isAdmin !== true)
+  // In attesa = mai approvati, non rifiutati, non admin, non owner.
+  const pendingUsers = users.filter(
+    (u) => u.approved !== true && u.rejected !== true && u.isAdmin !== true && u.isOwner !== true
+  )
   const shownRequests = pendingUsers.filter((u) =>
     (u.displayName || '').toLowerCase().includes(requestSearch.trim().toLowerCase())
   )
-  const activeUsers = users.filter((u) => u.approved === true || u.isAdmin === true)
+  const activeUsers = users.filter((u) => u.approved === true || u.isAdmin === true || u.isOwner === true)
 
   async function approveUser(u) {
     setMsg('')
